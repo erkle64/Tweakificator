@@ -1,0 +1,6 @@
+
+Tweakificator/.vs/*
+Tweakificator/obj/*
+Tweakificator/bin/*
+Libraries/*.dll
+.vs/*
