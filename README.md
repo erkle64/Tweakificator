@@ -12,7 +12,7 @@ Extract everything inside the zip into your Foundry folder.
 
 #### Usage
 
-* Run the Foundry once after installing to generate folders and dump information from the game.
+* Run Foundry once after installing to generate folders and dump information from the game.
 * Dumped information can be found in BepInEx\\plugins\\Tweakificator
 * Tweak files should be placed in BepInEx\\tweaks
 * For example tweaks see [Releases](https://github.com/erkle64/Tweakificator/releases)
