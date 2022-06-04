@@ -21,16 +21,21 @@ namespace Tweakificator
 
         public static BepInEx.Logging.ManualLogSource log;
 
+        public static ConfigEntry<bool> forceDump;
+
         public static string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         public static string jsonFolder = Path.Combine(assemblyFolder, "Tweakificator");
-        public static string recipeFolder = Path.Combine(jsonFolder, "Recipes");
+        public static string recipesFolder = Path.Combine(jsonFolder, "Recipes");
         public static string itemsFolder = Path.Combine(jsonFolder, "Items");
         public static string tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
 
         public static bool firstRun = false;
 
         public static JObject patchData = null;
-        public static JObject patchDataItemChanges = null;
+        public static JObject patchDataItemChanges = new JObject();
+        public static JObject patchDataRecipeChanges = new JObject();
+        public static JObject patchDataItemAdditions = new JObject();
+        public static JObject patchDataRecipeAdditions = new JObject();
 
         public BepInExLoader()
         {
@@ -39,13 +44,15 @@ namespace Tweakificator
 
         public override void Load()
         {
+            forceDump = Config.Bind("Dump", "forceDump", false, "Overwrite existing dump files.");
+
             if (!Directory.Exists(jsonFolder))
             {
                 Directory.CreateDirectory(jsonFolder);
                 firstRun = true;
             }
 
-            if (!Directory.Exists(recipeFolder)) Directory.CreateDirectory(recipeFolder);
+            if (!Directory.Exists(recipesFolder)) Directory.CreateDirectory(recipesFolder);
             if (!Directory.Exists(itemsFolder)) Directory.CreateDirectory(itemsFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
 
@@ -66,7 +73,18 @@ namespace Tweakificator
 
             if(patchData != null)
             {
-                patchDataItemChanges = patchData["changes"]["items"] as JObject;
+                if (patchData.ContainsKey("changes"))
+                {
+                    var changes = (JObject)patchData["changes"];
+                    if(changes.ContainsKey("items")) patchDataItemChanges = changes["items"] as JObject;
+                    if(changes.ContainsKey("recipes")) patchDataRecipeChanges = changes["recipes"] as JObject;
+                }
+                if (patchData.ContainsKey("additions"))
+                {
+                    var additions = (JObject)patchData["additions"];
+                    if(additions.ContainsKey("items")) patchDataItemAdditions = additions["items"] as JObject;
+                    if(additions.ContainsKey("recipes")) patchDataRecipeAdditions = additions["recipes"] as JObject;
+                }
             }
 
             log.LogMessage("Registering PluginComponent in Il2Cpp");
@@ -88,12 +106,20 @@ namespace Tweakificator
             {
                 var harmony = new Harmony(GUID);
 
-                //var original = AccessTools.Method(typeof(NativeWrapper), "templateManager_registerItemTemplate");
-                //var pre = AccessTools.Method(typeof(PluginComponent), "templateManager_registerItemTemplate");
-                //harmony.Patch(original, prefix: new HarmonyMethod(pre));
+                var original = AccessTools.Method(typeof(ItemTemplate), "onLoad");
+                var pre = AccessTools.Method(typeof(PluginComponent), "onLoadItemTemplate");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
 
-                var original = AccessTools.Method(typeof(ItemTemplate), "onLoadPostprocess");
-                var post = AccessTools.Method(typeof(PluginComponent), "onLoadItemTemplatePostProcess");
+                original = AccessTools.Method(typeof(ItemTemplate), "LoadAllItemTemplatesInBuild");
+                var post = AccessTools.Method(typeof(PluginComponent), "LoadAllItemTemplatesInBuild");
+                harmony.Patch(original, postfix: new HarmonyMethod(post));
+
+                original = AccessTools.Method(typeof(CraftingRecipe), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadRecipe");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                original = AccessTools.Method(typeof(CraftingRecipe), "LoadAllCraftingRecipesInBuild");
+                post = AccessTools.Method(typeof(PluginComponent), "LoadAllCraftingRecipesInBuild");
                 harmony.Patch(original, postfix: new HarmonyMethod(post));
             }
             catch
