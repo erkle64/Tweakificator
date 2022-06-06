@@ -22,11 +22,14 @@ namespace Tweakificator
         public static BepInEx.Logging.ManualLogSource log;
 
         public static ConfigEntry<bool> forceDump;
+        public static ConfigEntry<bool> dumpIcons;
 
         public static string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        public static string jsonFolder = Path.Combine(assemblyFolder, "Tweakificator");
-        public static string recipesFolder = Path.Combine(jsonFolder, "Recipes");
-        public static string itemsFolder = Path.Combine(jsonFolder, "Items");
+        public static string dumpFolder = Path.Combine(assemblyFolder, "Tweakificator");
+        public static string itemsDumpFolder = Path.Combine(dumpFolder, "Items");
+        public static string recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
+        public static string terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
+        public static string iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
         public static string tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
 
         public static bool firstRun = false;
@@ -39,21 +42,24 @@ namespace Tweakificator
 
         public BepInExLoader()
         {
-            log = Log;
+            PluginComponent.log = log = Log;
         }
 
         public override void Load()
         {
             forceDump = Config.Bind("Dump", "forceDump", false, "Overwrite existing dump files.");
+            dumpIcons = Config.Bind("Dump", "dumpIcons", false, "Dump icon files. (very slow)");
 
-            if (!Directory.Exists(jsonFolder))
+            if (!Directory.Exists(dumpFolder))
             {
-                Directory.CreateDirectory(jsonFolder);
+                Directory.CreateDirectory(dumpFolder);
                 firstRun = true;
             }
 
-            if (!Directory.Exists(recipesFolder)) Directory.CreateDirectory(recipesFolder);
-            if (!Directory.Exists(itemsFolder)) Directory.CreateDirectory(itemsFolder);
+            if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
+            if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
+            if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
+            if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
 
             foreach(var path in Directory.GetFiles(tweaksFolder, "*.json"))
@@ -121,6 +127,14 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(CraftingRecipe), "LoadAllCraftingRecipesInBuild");
                 post = AccessTools.Method(typeof(PluginComponent), "LoadAllCraftingRecipesInBuild");
                 harmony.Patch(original, postfix: new HarmonyMethod(post));
+
+                original = AccessTools.Method(typeof(ResourceDB), "InitOnApplicationStart");
+                post = AccessTools.Method(typeof(PluginComponent), "ResourceDBInitOnApplicationStart");
+                harmony.Patch(original, postfix: new HarmonyMethod(post));
+
+                original = AccessTools.Method(typeof(TerrainBlockType), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadTerrainBlockType");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
             }
             catch
             {
