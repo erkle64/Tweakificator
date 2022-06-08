@@ -7,6 +7,7 @@ using Object = UnityEngine.Object;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 using System.IO;
+using static ItemTemplateManager;
 
 namespace Tweakificator
 {
@@ -17,7 +18,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.2.0";
+            VERSION = "1.3.0";
 
         public static BepInEx.Logging.ManualLogSource log;
 
@@ -29,16 +30,23 @@ namespace Tweakificator
         public static string itemsDumpFolder = Path.Combine(dumpFolder, "Items");
         public static string recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
         public static string terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
+        public static string buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
         public static string iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
         public static string tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
+        public static string iconsFolder = Path.Combine(tweaksFolder, "icons");
+        public static string texturesFolder = Path.Combine(tweaksFolder, "textures");
 
         public static bool firstRun = false;
 
         public static JObject patchData = null;
         public static JObject patchDataItemChanges = new JObject();
         public static JObject patchDataRecipeChanges = new JObject();
+        public static JObject patchDataTerrainChanges = new JObject();
+        public static JObject patchDataBuildingChanges = new JObject();
         public static JObject patchDataItemAdditions = new JObject();
         public static JObject patchDataRecipeAdditions = new JObject();
+        public static JObject patchDataTerrainAdditions = new JObject();
+        public static JObject patchDataBuildingAdditions = new JObject();
 
         public BepInExLoader()
         {
@@ -59,8 +67,11 @@ namespace Tweakificator
             if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
             if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
             if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
+            if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
+            if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
+            if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
 
             foreach(var path in Directory.GetFiles(tweaksFolder, "*.json"))
             {
@@ -84,12 +95,16 @@ namespace Tweakificator
                     var changes = (JObject)patchData["changes"];
                     if(changes.ContainsKey("items")) patchDataItemChanges = changes["items"] as JObject;
                     if(changes.ContainsKey("recipes")) patchDataRecipeChanges = changes["recipes"] as JObject;
+                    if(changes.ContainsKey("terrain")) patchDataTerrainChanges = changes["terrain"] as JObject;
+                    if(changes.ContainsKey("buildings")) patchDataBuildingChanges = changes["buildings"] as JObject;
                 }
                 if (patchData.ContainsKey("additions"))
                 {
                     var additions = (JObject)patchData["additions"];
                     if(additions.ContainsKey("items")) patchDataItemAdditions = additions["items"] as JObject;
                     if(additions.ContainsKey("recipes")) patchDataRecipeAdditions = additions["recipes"] as JObject;
+                    if(additions.ContainsKey("terrain")) patchDataTerrainAdditions = additions["terrain"] as JObject;
+                    if(additions.ContainsKey("buildings")) patchDataBuildingAdditions = additions["buildings"] as JObject;
                 }
             }
 
@@ -135,6 +150,18 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(TerrainBlockType), "onLoad");
                 pre = AccessTools.Method(typeof(PluginComponent), "onLoadTerrainBlockType");
                 harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                original = AccessTools.Method(typeof(ItemTemplateManager._InitOnApplicationStart_d__31), "MoveNext");
+                pre = AccessTools.Method(typeof(PluginComponent), "onItemTemplateManagerInitOnApplicationStart");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                original = AccessTools.Method(typeof(BuildableObjectTemplate), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadBuildableObjectTemplate");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                original = AccessTools.Method(typeof(BuildableObjectTemplate), "LoadAllBuildableObjectTemplatesInBuild");
+                post = AccessTools.Method(typeof(PluginComponent), "LoadAllBuildableObjectTemplatesInBuild");
+                harmony.Patch(original, postfix: new HarmonyMethod(post));
             }
             catch
             {

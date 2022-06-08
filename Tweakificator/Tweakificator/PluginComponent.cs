@@ -7,39 +7,68 @@ using System.IO;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 using UnhollowerRuntimeLib;
+using UnityEngine.Experimental.Rendering;
 
 namespace Tweakificator
 {
     public class PluginComponent : MonoBehaviour
     {
+        private static JsonSerializerSettings serializerSettings;
+
         private static JsonConverter[] jsonConverters = new JsonConverter[]
         {
-            new ObjectConverter<ItemTemplate.ItemMode>("identifier", "name"),
+            new ObjectConverter<ItemTemplate.ItemMode>("identifier", "name", "icon"),
             new ObjectConverter<CraftingRecipe.CraftingRecipeItemInput>("identifier", "amount"),
             new ObjectConverter<CraftingRecipe.CraftingRecipeElementalInput>("identifier", "amount_str"),
+            new ObjectConverter<Vector3>("x", "y", "z"),
             new ObjectConverter<Vector3Int>("x", "y", "z"),
             new ObjectConverter<Color>("r", "g", "b", "a"),
+            new ObjectConverter<Quaternion>("x", "y", "z", "w"),
+            new ObjectConverter<BuildableObjectTemplate.DragMode>("name", "isDefault"),
+            new ObjectConverter<BuildableObjectTemplate.FluidBox>("localOffset", "connectorFlags"),
 
             new ArrayMapConverter<CraftingRecipe.CraftingRecipeItemInput>("identifier", "amount"),
             new ArrayMapConverter<CraftingRecipe.CraftingRecipeElementalInput>("identifier", "amount_str"),
+            new ArrayMapConverter<ItemTemplate.ItemMode>("identifier", "name", "icon"),
+
+            new ListConverter<Vector3Int>(),
+            new ListConverter<string>(),
 
             new EnumConverter<ItemTemplate.ItemTemplateToggleableModeTypes>(),
+            new EnumConverter<BuildableObjectTemplate.BuildableObjectPowerSubType>(),
+            new EnumConverter<BuildableObjectTemplate.CustomSnapMode>(),
+            new EnumConverter<BuildableObjectTemplate.DragBuildType>(),
+            new EnumConverter<BuildableObjectTemplate.FoundationConnectorType>(),
+            new EnumConverter<BuildableObjectTemplate.ModularBuildingType>(),
+            new EnumConverter<BuildableObjectTemplate.ProducerRecipeType>(),
+            new EnumConverter<BuildableObjectTemplate.ScreenPanelType>(),
+            new EnumConverter<BuildableObjectTemplate.SimulationType>(),
 
             new EnumFlagsConverter<ItemTemplate.ItemTemplateFlags>(),
             new EnumFlagsConverter<ItemTemplate.HandheldSubType>(),
             new EnumFlagsConverter<TerrainBlockType.DecorFlags>(),
             new EnumFlagsConverter<TerrainBlockType.OreSpawnFlags>(),
             new EnumFlagsConverter<TerrainBlockType.TerrainTypeFlags>(),
+            new EnumFlagsConverter<BuildableObjectTemplate.PipeConnectorFlags>(),
+            new EnumFlagsConverter<BuildableObjectTemplate.PoleGridTypes>(),
+
+            new EnumFlagsConverterByte<BuildableObjectTemplate.SimulationSleepFlags>(),
 
             new StringArrayConverter(),
 
-            new Texture2DProxyConverter()
+            new Texture2DProxyConverter(),
+
+            new SpriteConverter()
         };
+
+        private static int[] iconSizes = new int[] { 64, 96, 128, 256, 512 };
 
         public static BepInEx.Logging.ManualLogSource log;
 
         public PluginComponent(IntPtr ptr) : base(ptr)
         {
+            serializerSettings = new JsonSerializerSettings();
+            serializerSettings.Converters = jsonConverters;
         }
 
         public static object invokeValue(Type type, JToken token)
@@ -71,22 +100,34 @@ namespace Tweakificator
                 }
                 else
                 {
-                    //var templateField = template.GetType().GetField(field.Name);
-                    //if (templateField != null)
-                    //{
-                    //    field.SetValue(dump, Convert.ChangeType(templateField.GetValue(template), field.FieldType));
-                    //}
-                    //else
-                    //{
-                        log.LogMessage(string.Format("Failed to dump {0}", field.Name));
-                    //}
+                    log.LogMessage(string.Format("Failed to dump {0}", field.Name));
                 }
             }
             return (D)dump;
         }
 
+        public static Sprite createSprite(Texture2D texture)
+        {
+            return Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
+        }
+
         public static void ResourceDBInitOnApplicationStart()
         {
+            foreach (var filename in Directory.EnumerateFiles(BepInExLoader.iconsFolder, "*.png"))
+            {
+                var path = Path.Combine(BepInExLoader.iconsFolder, filename);
+                var identifier = Path.GetFileNameWithoutExtension(path);
+                log.LogMessage(string.Format("Loading icon '{0}' from '{1}'", identifier, filename));
+
+                var iconTexture = new Texture2D(2, 2);
+                iconTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(path)), true);
+                ResourceDB.dict_icons[0][GameRoot.generateStringHash64(identifier + "_0")] = createSprite(iconTexture);
+                foreach (var size in iconSizes)
+                {
+                    ResourceDB.dict_icons[size][GameRoot.generateStringHash64(identifier + "_" + size.ToString())] = createSprite(resizeTexture(iconTexture, size, size));
+                }
+            }
+
             var listPath = Path.Combine(BepInExLoader.iconsDumpFolder, "__icons.txt");
             if (BepInExLoader.forceDump.Value || !File.Exists(listPath))
             {
@@ -135,13 +176,10 @@ namespace Tweakificator
 
         public static void onLoadItemTemplate(ItemTemplate __instance)
         {
-            var settings = new JsonSerializerSettings();
-            settings.Converters = jsonConverters;
-
             var path = Path.Combine(BepInExLoader.itemsDumpFolder, __instance.identifier + ".json");
             if (BepInExLoader.forceDump.Value || !File.Exists(path))
             {
-                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ItemDump, ItemTemplate>(__instance), Formatting.Indented, settings));
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ItemDump, ItemTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
             if (BepInExLoader.patchDataItemChanges != null && BepInExLoader.patchDataItemChanges.ContainsKey(__instance.identifier))
@@ -150,20 +188,17 @@ namespace Tweakificator
                 var changes = BepInExLoader.patchDataItemChanges[__instance.identifier] as JObject;
                 if (changes != null)
                 {
-                    JsonConvert.PopulateObject(changes.ToString(), __instance, settings);
+                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
                 }
             }
         }
 
         public static void LoadAllItemTemplatesInBuild(ref Il2CppReferenceArray<ItemTemplate> __result)
         {
-            var settings = new JsonSerializerSettings();
-            settings.Converters = jsonConverters;
-
             var result = new Il2CppReferenceArray<ItemTemplate>(__result.Count + BepInExLoader.patchDataItemAdditions.Count);
             for (int i = 0; i < __result.Count; ++i) result[i] = __result[i];
             int index = __result.Count;
-            foreach(var entry in BepInExLoader.patchDataItemAdditions)
+            foreach (var entry in BepInExLoader.patchDataItemAdditions)
             {
                 var source = (JObject)entry.Value;
                 if (source == null) throw new Exception("Invalid item:\r\n" + entry.Value.ToString());
@@ -172,9 +207,9 @@ namespace Tweakificator
                 if (source.ContainsKey("__template"))
                 {
                     var templateIdentifier = source.Value<string>("__template");
-                    for(int i = 0; i < __result.Count; ++i)
+                    for (int i = 0; i < __result.Count; ++i)
                     {
-                        if(__result[i].identifier == templateIdentifier)
+                        if (__result[i].identifier == templateIdentifier)
                         {
                             template = __result[i];
                             break;
@@ -188,28 +223,20 @@ namespace Tweakificator
 
                 log.LogMessage(string.Format("Adding item {0}", entry.Key));
 
-                var instance = ScriptableObject.CreateInstance<ItemTemplate>();
-                instance.railMiner_terrainTargetList_str = new Il2CppStringArray(0);
+                ItemTemplate instance;
                 if (template != null)
                 {
                     log.LogMessage(string.Format("Using template {0}", template.identifier));
-                    foreach(var field in typeof(ItemDump).GetFields())
-                    {
-                        if(field.Name != "identifier")
-                        {
-                            var property = typeof(ItemTemplate).GetProperty(field.Name);
-                            property.SetValue(instance, property.GetValue(template));
-                        }
-                    }
-                    foreach (var fieldName in new[] { "toggleableModeType", "toggleableModes" })
-                    {
-                        var property = typeof(ItemTemplate).GetProperty(fieldName);
-                        property.SetValue(instance, property.GetValue(template));
-                    }
+                    instance = Instantiate<ItemTemplate>(template);
+                }
+                else
+                {
+                    instance = ScriptableObject.CreateInstance<ItemTemplate>();
+                    instance.railMiner_terrainTargetList_str = new Il2CppStringArray(0);
                 }
 
                 instance.identifier = entry.Key;
-                JsonConvert.PopulateObject(entry.Value.ToString(), instance, settings);
+                JsonConvert.PopulateObject(entry.Value.ToString(), instance, serializerSettings);
                 result[index++] = instance;
             }
 
@@ -218,13 +245,10 @@ namespace Tweakificator
 
         public static void onLoadRecipe(CraftingRecipe __instance)
         {
-            var settings = new JsonSerializerSettings();
-            settings.Converters = jsonConverters;
-
             var path = Path.Combine(BepInExLoader.recipesDumpFolder, __instance.identifier + ".json");
             if (BepInExLoader.forceDump.Value || !File.Exists(path))
             {
-                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<RecipeDump, CraftingRecipe>(__instance), Formatting.Indented, settings));
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<RecipeDump, CraftingRecipe>(__instance), Formatting.Indented, serializerSettings));
             }
 
             if (BepInExLoader.patchDataRecipeChanges != null && BepInExLoader.patchDataRecipeChanges.ContainsKey(__instance.identifier))
@@ -232,19 +256,16 @@ namespace Tweakificator
                 log.LogMessage(string.Format("Patching recipe {0}", __instance.identifier));
                 var changes = BepInExLoader.patchDataRecipeChanges[__instance.identifier] as JObject;
 
-                JsonConvert.PopulateObject(changes.ToString(), __instance, settings);
+                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
             }
         }
 
         public static void LoadAllCraftingRecipesInBuild(ref Il2CppReferenceArray<CraftingRecipe> __result)
         {
-            var settings = new JsonSerializerSettings();
-            settings.Converters = jsonConverters;
-
             var result = new Il2CppReferenceArray<CraftingRecipe>(__result.Count + BepInExLoader.patchDataRecipeAdditions.Count);
             for (int i = 0; i < __result.Count; ++i) result[i] = __result[i];
             int index = __result.Count;
-            foreach(var entry in BepInExLoader.patchDataRecipeAdditions)
+            foreach (var entry in BepInExLoader.patchDataRecipeAdditions)
             {
                 var source = (JObject)entry.Value;
                 if (source == null) throw new Exception("Invalid recipe:\r\n" + entry.Value.ToString());
@@ -253,44 +274,39 @@ namespace Tweakificator
                 if (source.ContainsKey("__template"))
                 {
                     var templateIdentifier = source.Value<string>("__template");
-                    for(int i = 0; i < __result.Count; ++i)
+                    for (int i = 0; i < __result.Count; ++i)
                     {
-                        if(__result[i].identifier == templateIdentifier)
+                        if (__result[i].identifier == templateIdentifier)
                         {
                             template = __result[i];
                             break;
                         }
                     }
-                    if(template == null)
+                    if (template == null)
                     {
                         log.LogError(string.Format("Template recipe {0} not found!", templateIdentifier));
                     }
                 }
 
                 log.LogMessage(string.Format("Adding recipe {0}", entry.Key));
-
-                var instance = ScriptableObject.CreateInstance<CraftingRecipe>();
-                instance.tagHashes = new Il2CppStructArray<ulong>(0);
-                instance.input_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
-                instance.output_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
-                instance.inputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
-                instance.outputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
-
+                CraftingRecipe instance;
                 if (template != null)
                 {
                     log.LogMessage(string.Format("Using template {0}", template.identifier));
-                    foreach(var field in typeof(RecipeDump).GetFields())
-                    {
-                        if(field.Name != "identifier")
-                        {
-                            var property = typeof(CraftingRecipe).GetProperty(field.Name);
-                            property.SetValue(instance, property.GetValue(template));
-                        }
-                    }
+                    instance = Instantiate<CraftingRecipe>(template);
+                }
+                else
+                {
+                    instance = ScriptableObject.CreateInstance<CraftingRecipe>();
+                    instance.tagHashes = new Il2CppStructArray<ulong>(0);
+                    instance.input_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
+                    instance.output_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
+                    instance.inputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
+                    instance.outputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
                 }
 
                 instance.identifier = entry.Key;
-                JsonConvert.PopulateObject(entry.Value.ToString(), instance, settings);
+                JsonConvert.PopulateObject(entry.Value.ToString(), instance, serializerSettings);
                 result[index++] = instance;
             }
 
@@ -299,24 +315,177 @@ namespace Tweakificator
 
         public static void onLoadTerrainBlockType(TerrainBlockType __instance)
         {
-            var settings = new JsonSerializerSettings();
-            settings.Converters = jsonConverters;
-
             var path = Path.Combine(BepInExLoader.terrainBlocksDumpFolder, __instance.identifier + ".json");
             if (BepInExLoader.forceDump.Value || !File.Exists(path))
             {
-                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<TerrainBlockDump, TerrainBlockType>(__instance), Formatting.Indented, settings));
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<TerrainBlockDump, TerrainBlockType>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            //if (BepInExLoader.patchDataItemChanges != null && BepInExLoader.patchDataItemChanges.ContainsKey(__instance.identifier))
-            //{
-            //    log.LogMessage(string.Format("Patching item {0}", __instance.identifier));
-            //    var changes = BepInExLoader.patchDataItemChanges[__instance.identifier] as JObject;
-            //    if (changes != null)
-            //    {
-            //        JsonConvert.PopulateObject(changes.ToString(), __instance, settings);
-            //    }
-            //}
+            if (BepInExLoader.patchDataTerrainChanges != null && BepInExLoader.patchDataTerrainChanges.ContainsKey(__instance.identifier))
+            {
+                log.LogMessage(string.Format("Patching terrain block {0}", __instance.identifier));
+                var changes = BepInExLoader.patchDataTerrainChanges[__instance.identifier] as JObject;
+                if (changes != null)
+                {
+                    if (changes.ContainsKey("texture_abledo"))
+                    {
+                        __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].Value<string>());
+                        changes.Remove("texture_abledo");
+                    }
+                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                }
+            }
+        }
+
+        private static bool hasRun_terrainBlockTemplates = false;
+        private static bool hasRun_terrainBlockScratchGroups = false;
+        public static void onItemTemplateManagerInitOnApplicationStart()
+        {
+            if(!hasRun_terrainBlockScratchGroups && ItemTemplateManager.dict_terrainBlockScratchGroups != null && ItemTemplateManager.dict_terrainBlockScratchGroups.Count > 0)
+            {
+                hasRun_terrainBlockScratchGroups = true;
+
+                foreach (var entry in BepInExLoader.patchDataTerrainAdditions)
+                {
+                    log.LogMessage(string.Format("Generate scratch group for {0}", entry.Key));
+
+                    var source = (JObject)entry.Value;
+                    if (source == null) throw new Exception("Invalid terrain block:\r\n" + entry.Value.ToString());
+
+                    string terrainBlockIdentifier;
+                    if (source.ContainsKey("__template"))
+                    {
+                        terrainBlockIdentifier = source["__template"].Value<string>();
+                    }
+                    else
+                    {
+                        terrainBlockIdentifier = "_base_concrete";
+                    }
+
+                    var template = ItemTemplateManager.getTerrainBlockScratchGroupByTerrainBlockType(terrainBlockIdentifier);
+
+                    var instance = Instantiate<TerrainBlockScratchGroup>(template);
+                    instance.terrainBlockType_identifier = entry.Key;
+                    instance.id = GameRoot.generateStringHash64("tbsg_"+instance.terrainBlockType_identifier);
+                    instance.id32 = GameRoot.generateStringHash32("tbsg_" + instance.terrainBlockType_identifier);
+
+                    ItemTemplateManager.dict_terrainBlockScratchGroups[instance.id] = instance;
+                }
+            }
+
+            if (!hasRun_terrainBlockTemplates && ItemTemplateManager.dict_terrainBlockTemplates != null && ItemTemplateManager.dict_terrainBlockTemplates.Count > 0)
+            {
+                hasRun_terrainBlockTemplates = true;
+
+                foreach (var entry in BepInExLoader.patchDataTerrainAdditions)
+                {
+                    var source = (JObject)entry.Value;
+                    if (source == null) throw new Exception("Invalid terrain block:\r\n" + entry.Value.ToString());
+
+                    TerrainBlockType template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source.Value<string>("__template");
+                        foreach (var templateEntry in ItemTemplateManager.dict_terrainBlockTemplates.Values)
+                        {
+                            if (templateEntry.identifier == templateIdentifier)
+                            {
+                                template = templateEntry;
+                                break;
+                            }
+                        }
+                        if (template == null)
+                        {
+                            log.LogError(string.Format("Template terrain block {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    log.LogMessage(string.Format("Adding terrain block {0}", entry.Key));
+
+                    TerrainBlockType instance;
+                    if (template != null)
+                    {
+                        log.LogMessage(string.Format("Using template {0}", template.identifier));
+                        instance = Instantiate<TerrainBlockType>(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<TerrainBlockType>();
+                        instance.surfaceOre_worldDecor_identifier = new Il2CppStringArray(0);
+                    }
+
+                    instance.identifier = entry.Key;
+                    instance.id = GameRoot.generateStringHash64("tbt_" + instance.identifier);
+                    instance.id32 = GameRoot.generateStringHash32("tbt_" + instance.identifier);
+
+                    if (source.ContainsKey("texture_abledo"))
+                    {
+                        instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(source["texture_abledo"].Value<string>());
+                        source.Remove("texture_abledo");
+                    }
+                    JsonConvert.PopulateObject(source.ToString(), instance, serializerSettings);
+
+                    ItemTemplateManager.dict_terrainBlockTemplates[instance.id] = instance;
+                }
+            }
+        }
+
+        public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
+        {
+            var path = Path.Combine(BepInExLoader.buildingsDumpFolder, __instance.identifier + ".json");
+            if (BepInExLoader.forceDump.Value || !File.Exists(path))
+            {
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BuildableObjectDump, BuildableObjectTemplate>(__instance), Formatting.Indented, serializerSettings));
+            }
+        }
+
+        public static void LoadAllBuildableObjectTemplatesInBuild(ref Il2CppReferenceArray<BuildableObjectTemplate> __result)
+        {
+            var result = new Il2CppReferenceArray<BuildableObjectTemplate>(__result.Count + BepInExLoader.patchDataBuildingAdditions.Count);
+            for (int i = 0; i < __result.Count; ++i) result[i] = __result[i];
+            int index = __result.Count;
+            foreach (var entry in BepInExLoader.patchDataBuildingAdditions)
+            {
+                var source = (JObject)entry.Value;
+                if (source == null) throw new Exception("Invalid building:\r\n" + entry.Value.ToString());
+
+                BuildableObjectTemplate template = null;
+                if (source.ContainsKey("__template"))
+                {
+                    var templateIdentifier = source.Value<string>("__template");
+                    for (int i = 0; i < __result.Count; ++i)
+                    {
+                        if (__result[i].identifier == templateIdentifier)
+                        {
+                            template = __result[i];
+                            break;
+                        }
+                    }
+                    if (template == null)
+                    {
+                        log.LogError(string.Format("Template building {0} not found!", templateIdentifier));
+                    }
+                }
+
+                log.LogMessage(string.Format("Adding building {0}", entry.Key));
+
+                BuildableObjectTemplate instance;
+                if (template != null)
+                {
+                    log.LogMessage(string.Format("Using template {0}", template.identifier));
+                    instance = Instantiate(template);
+                }
+                else
+                {
+                    instance = ScriptableObject.CreateInstance<BuildableObjectTemplate>();
+                }
+
+                instance.identifier = entry.Key;
+                JsonConvert.PopulateObject(entry.Value.ToString(), instance, serializerSettings);
+                result[index++] = instance;
+            }
+
+            __result = result;
         }
 
         private static Texture2D duplicateTexture(Texture2D sourceTexture)
@@ -334,6 +503,23 @@ namespace Tweakificator
             return readableTexture;
         }
 
+        private static Texture2D resizeTexture(Texture2D texture2D, int width, int height)
+        {
+            RenderTexture rt = new RenderTexture(width, height, 24);
+            var previousActive = RenderTexture.active;
+            RenderTexture.active = rt;
+            Graphics.Blit(texture2D, rt);
+            Texture2D result = new Texture2D(width, height);
+            result.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            result.Apply();
+            RenderTexture.active = previousActive;
+            return result;
+        }
+
+        internal static Sprite getIcon(string name)
+        {
+            return ResourceDB.getIcon(name, 256);
+        }
 
 #pragma warning disable CS0649
         private struct ItemDump
@@ -451,6 +637,227 @@ namespace Tweakificator
             public float height_bottom;
         }
 
+        public struct BuildableObjectDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public bool includeInBuild;
+            public BuildableObjectTemplate.BuildableObjectType type;
+            public BuildableObjectTemplate.SimulationType simulationType;
+            public BuildableObjectTemplate.SimulationSleepFlags simulationSleepFlags;
+            public bool simTypeSleep_initial;
+            public bool isSuperBuilding;
+            public Vector3Int size;
+            // public GameObject prefab;
+            public bool enableBatching;
+            public BuildableObjectTemplate.DragBuildType dragBuildType;
+            public float dragModeOrientationSlope_planeAngle;
+            public int dragModeOrientationSlope_yOrientationModifier;
+            public int dragModeOrientationSlope_yOffsetPerInstance;
+            public bool dragModeOrientationSlope_allowSideways;
+            public Il2CppReferenceArray<BuildableObjectTemplate.DragMode> dragModes;
+            public BuildableObjectTemplate.CustomSnapMode customSnapMode;
+            public float demolitionTimeSec;
+            public bool canBeDestroyedByDynamite;
+            public string conversionGroup_str;
+            public bool isVisibleOnMap;
+            public byte mapColorPriority;
+            public bool skipForRunningIdxGeneration;
+            // public AudioClip audioClip_customBuildSound;
+            // public AudioClip audioClip_customItemFinishSound;
+            public int audioClipIdx_customItemFinishSound;
+            public bool hasNameOverride;
+            public string nameOverride;
+            public BuildableObjectTemplate.ScreenPanelType screenPanelType;
+            public bool hasToBeOnFoundation;
+            public bool floorShouldOutlineBuilding;
+            public BuildableObjectTemplate.FoundationConnectorType foundationConnection;
+            public int loaderLevel;
+            public bool disableLoaders;
+            public bool hasPipeLoaderSupport;
+            public Il2CppStructArray<v3i> blockedLoaderPositions;
+            public bool rotationAllowed;
+            public bool canBeRotatedAroundXAxis;
+            public Il2CppStructArray<BuildableObjectTemplate.AdditionalAABB3D> additionalAABBs_input;
+            public bool isModularBuilding;
+            public BuildableObjectTemplate.ModularBuildingType modularBuildingType;
+            public string modularBuildingModule_descriptionName;
+            public uint modularBuildingModule_amountItemCost;
+            public string modularBuildingModule_unlockedByResearchTemplateIdentifier;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingConnectionNode> modularBuildingConnectionNodes;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingModuleLimit> modularBuildingLimits;
+            public Vector3Int modularBuildingLocalSearchAnchor;
+            public bool modularBuildingHasConveyorConnectionManager;
+            //public Il2CppStructArray<BuildableObjectTemplate.ModularBuildingConveyorConnectionData> modularBuildingConveyorConnectionData;
+            public bool modularBuildingHasPipeConnectionManager;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingPipeConnectionData> modularBuildingPipeConnectionData;
+            public string modularBuildingPipeAllowedPipeMaxThroughputPerTickInLiter_str;
+            public BuildableObjectTemplate.BuildableObjectPowerSubType powerSubType;
+            public bool spp_showPowerButton;
+            public string energyConsumptionKW_str;
+            public bool hasEnergyGridConnection;
+            public int powerProducer_drawPriority;
+            public bool hasFuelManagerSolid;
+            public bool spawnFlyingDebrisWhenExploding;
+            // public GameObject debrisWithExplosionForcePrefab;
+            public bool hasLightSource;
+            //public Il2CppStructArray<BuildableObjectTemplate.LightEmitter> lightEmitters;
+            public bool hasPoleGridConnection;
+            public int poleGrid_connectionRange;
+            public Vector3Int poleGrid_connectorOffset;
+            public int poleGrid_maxConnections;
+            public int poleGrid_reservedConnections;
+            public BuildableObjectTemplate.PoleGridTypes poleGridType;
+            public BuildableObjectTemplate.PoleGridTypes poleGridConnectionMatrix;
+            public bool hasIntraBuildingWalkways;
+            //public Il2CppStructArray<BuildableObjectTemplate.IntraBuildingWalkwayData> intraBuildingWalkwayData;
+            public bool hasAdjacentWalkwayOverrides;
+            //public Il2CppStructArray<BuildableObjectTemplate.IntraBuildingWalkwayData> adjacentWalkwayOverridesPos;
+            public int droneMiner_oreSearchRadius;
+            public int droneMiner_itemCapacityPerDrone;
+            public string droneMiner_miningPower_str;
+            public string droneMiner_miningSpeed_str;
+            public string droneMiner_droneCharge_str;
+            public int droneMiner_droneCount;
+            public Vector3Int droneMiner_dockPositionInside;
+            public Vector3Int droneMiner_dockPositionOutside;
+            // public AudioClip droneMiner_audioClip_droneHover;
+            // public AudioClip droneMiner_audioClip_droneMining;
+            // public GameObject droneMiner_dronePrefab;
+            public Il2CppSystem.Collections.Generic.List<Vector3Int> droneMiner_list_localBlocksAllowedToBeTraversed;
+            public Vector3Int loader_localBeltOffset;
+            public int loader_ticksPerAction;
+            public string loader_idlePowerConsumption_kjPerS_str;
+            // public Mesh loader_meshDefault;
+            // public Mesh loader_meshParallel;
+            // public Mesh loader_meshStraight;
+            // public Material loader_material_default_impostor;
+            // public Material loader_material_default_impostor_orange;
+            // public GameObject loader_prefabOutputDummy;
+            public bool loader_isFilter;
+            public string pipeLoader_maxThroughputPerTickInLiter_str;
+            public string pipeLoader_idlePowerConsumption_kjPerS_str;
+            public Il2CppSystem.Collections.Generic.List<string> pipeLoader_allowedPipeGroupIdentifiers;
+            public uint storage_slotSize;
+            public string tank_volume_l_str;
+            public BuildableObjectTemplate.ProducerRecipeType producerRecipeType;
+            public string producer_recipeTimeModifier_str;
+            public int producer_energyInputType;
+            // public AudioClip producer_audioClip_active;
+            public string producer_recipeType_fixed;
+            public Il2CppStringArray producer_recipeType_tags;
+            public bool conveyor_isSlope;
+            public string conveyor_slopePartner_str;
+            // public Material conveyor_material;
+            // public Material conveyor_material_inv;
+            public int conveyor_speed_slotsPerTick;
+            // public Texture2D buildingPart_texture_albedo;
+            public bool buildingPart_hasSideTextures;
+            // public Texture2D buildingPart_texture_side_albedo;
+            public bool buildingPart_hasBottomTextures;
+            // public Texture2D buildingPart_texture_bottom_albedo;
+            // public GameObject voxelMeshCorner;
+            // public VoxelTiler voxelTiler;
+            public string turbine_powerModifier_str;
+            public string turbine_reactionItemIdentifier;
+            public string battery_capacityKJ_str;
+            public int shippingPad_inventorySlotCount;
+            public string shippingPad_requiredChargeKJ_str;
+            public string shippingPad_chargePerSecondKJ_str;
+            public int shippingPad_timeInSpaceSec;
+            public Il2CppStructArray<BuildableObjectTemplate.FluidBox> pipe_fluidBoxes;
+            public string pipe_fluidBoxCapacity_l_str;
+            public string pipe_groupIdentifier_str;
+            public bool pipe_hasVisualUpdate;
+            public uint pipe_visualUpdateFluidBoxTemplateIdx;
+            public string pipe_MASS_OF_LIQUID_DEFAULT_SQUARED_FPM_str;
+            public string pipe_DAMPING_FACTOR_FPM_str;
+            public string pipe_FRICTION_OF_LIQUID_DEFAULT_FPM_str;
+            public string transformer_transmissionRate_kjPerS_str;
+            // public AudioClip transformer_audioClip_active;
+            public string biomassBurner_transmissionRate_kjPerS_str;
+            public string biomassBurner_source_str;
+            // public AudioClip biomassBurner_audioClip_active;
+            public string solarPanel_outputMax_str;
+            public string solarPanel_outputMin_str;
+            public bool solarPanel_rotatingPart;
+            public string worldDecor_miningYield_str;
+            public int worldDecor_miningYield_amount;
+            public float worldDecor_miningTimeSec;
+            // public GameObject worldDecor_despawnPrefab;
+            // public Material worldDecor_drillMaterial;
+            // public AudioClip worldDecor_audioClip_afterHarvesting;
+            public bool worldDecor_isDebris;
+            public bool worldDecor_useColorHue;
+            // public Il2CppReferenceArray<GameObject> worldDecor_huePrefabs;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.WorldDecorSpecialDrop> worldDecor_specialDrops;
+            public Color worldDecor_scratchColor;
+            public string worldDecorGrowing_fullyGrownIdentifier_str;
+            public int worldDecorGrowing_growingTimeSec;
+            public Vector3 worldDecorGrowing_startingScale;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.SuperBuildingLevel> superBuilding_levels;
+            public Il2CppStringArray superBuilding_researchUnlocks_str;
+            public Il2CppStructArray<Vector3Int> superBuilding_allowedLoaderPositions;
+            public int superBuilding_loaderIndicator_rotY;
+            public bool superBuilding_refundOnDemolish;
+            public string researchLab_sciencePack_str;
+            public string pumpjack_amountPerSec_str;
+            public Vector3Int pumpjack_drillOffset;
+            public int pumpjack_maxDrillDepth;
+            // public AudioClip pumpjack_audioClip_active;
+            public string burnerGenerator_powerGenertaionRate_kjPerS_str;
+            // public AudioClip burnerGenerator_audioClip_active;
+            // public Mesh mesh_powerPole;
+            // public Material material_powerPolePreview;
+            public string terrainBlock_tbtIdentifier;
+            // public Material mat_lightOn;
+            // public Material mat_lightOff;
+            public Vector3Int minecartDepot_connectionPoint;
+            public BuildingManager.BuildOrientation minecartDepot_connectionSearchDirection;
+            public uint minecartDepot_miningInventorySlots;
+            public uint minecartDepot_cartInterval_sec;
+            public string minecartDepot_autobuildTrackTemplate_str;
+            public Il2CppStructArray<Vector3Int> minecartTracks_connectionPoints;
+            public Il2CppStructArray<BuildingManager.BuildOrientation> minecartTracks_connectionSearchDirection;
+            public int minecartTracks_slotLength;
+            public int freightContainer_speedPerTick;
+            public long freightElevator_tierID;
+            public string elevatorStation_structureBOT_str;
+            // public AudioClip elevatorStation_audioClip_cabinMoving;
+            // public AudioClip elevatorStation_audioClip_doorsOpening;
+            // public AudioClip elevatorStation_audioClip_doorsClosing;
+            // public AudioClip elevatorStation_audioClip_bell;
+            public float door_secondsToOpen;
+            // public AudioClip door_audioClip_openClose_trigger;
+            // public AudioClip door_audioClip_openClose_loop;
+            // public AudioClip geologicalScanner_audioClip_active;
+            public string blastFurnace_speedModifier;
+            public string blastFurnace_outputMultiplier;
+            public string blastFurnace_optimalRunningTemp;
+            public string blastFurnace_minRunningTemp;
+            public string blastFurnace_hotAirTemplateIdentifier;
+            public int blastFurnace_shutdownTimer_base_sec;
+            public int blastFurnace_shutdownTimer_temp_sec;
+            public string blastFurnace_towerModule_capacity;
+            public string blastFurnace_towerModule_speedIncrease;
+            public string blastFurnace_towerModuleBotIdentifier;
+            public string blastFurnace_gasExhaustDrainModuleBotIdentifier;
+            public string blastFurnace_towerModule_hotAirConsumptionPercentIncrease;
+            public string blastFurnace_baseHotAirConsumptionPerTick;
+            public string blastFurnace_maxHeatLossPerTick;
+            public string blastFurnace_heatGainPerTick;
+            public string blastFurnace_speedPercentageAtMinRunningTemp;
+            public byte resourceConverter_type;
+            public string resourceConverter_powerConsumption_kjPerSec;
+            public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> resourceConverter_input_elemental;
+            public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> resourceConverter_output_elemental;
+            //public Il2CppReferenceArray<BuildableObjectTemplate.ResourceConverterModuleSpeedBonus> resourceConverter_speedBonusModules;
+            public bool resourceConverter_hasAdjacencyBonus;
+            public string resourceConverter_powerDecreasePerAdjacentResourceConverter;
+            public byte resourceConverter_adjacencyBonusAxis;
+            //public AudioClip resourceConverter_audioClip_active;
+        }
+
         public struct Texture2DProxy
         {
             public string name;
@@ -485,20 +892,36 @@ namespace Tweakificator
                 var property = typeof(T).GetProperty(memberNames[i]);
                 if (property != null)
                 {
-                    _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(property.Name, JToken.FromObject(property.GetValue(value), serializer));
-                    _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => property.SetValue(value, PluginComponent.invokeValue(property.PropertyType, source[property.Name]));
+                    if (property.PropertyType == typeof(Sprite))
+                    {
+                        _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(property.Name, JToken.FromObject(((Sprite)property.GetValue(value)).name, serializer));
+                        _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => property.SetValue(value, PluginComponent.getIcon(source[property.Name].Value<string>()));
+                    }
+                    else
+                    {
+                        _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(property.Name, JToken.FromObject(property.GetValue(value), serializer));
+                        _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => property.SetValue(value, PluginComponent.invokeValue(property.PropertyType, source[property.Name]));
+                    }
                 }
                 else
                 {
                     var field = typeof(T).GetField(memberNames[i]);
                     if (field != null)
                     {
-                        _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(field.Name, JToken.FromObject(field.GetValue(value), serializer));
-                        _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => field.SetValue(value, PluginComponent.invokeValue(field.FieldType, source[field.Name]));
+                        if (field.FieldType == typeof(Sprite))
+                        {
+                            _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(field.Name, JToken.FromObject(((Sprite)field.GetValue(value)).name, serializer));
+                            _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => field.SetValue(value, PluginComponent.getIcon(source[field.Name].Value<string>()));
+                        }
+                        else
+                        {
+                            _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(field.Name, JToken.FromObject(field.GetValue(value), serializer));
+                            _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => field.SetValue(value, PluginComponent.invokeValue(field.FieldType, source[field.Name]));
+                        }
                     }
                     else
                     {
-                        PluginComponent.log.LogError(string.Format("Member {0} not found!", memberNames[i]));
+                        BepInExLoader.log.LogError(string.Format("Member {0} not found!", memberNames[i]));
                     }
                 }
             }
@@ -582,13 +1005,13 @@ namespace Tweakificator
 
                         if(isEmpty)
                         {
-                            PluginComponent.log.LogMessage(string.Format("Deleting {0} {1}.", typeof(E).Name, identifier));
+                            BepInExLoader.log.LogMessage(string.Format("Deleting {0} {1}.", typeof(E).Name, identifier));
                             targets.RemoveAt(index);
                             changed = true;
                         }
                         else
                         {
-                            PluginComponent.log.LogMessage(string.Format("Patching {0} {1}.", typeof(E).Name, identifier));
+                            BepInExLoader.log.LogMessage(string.Format("Patching {0} {1}.", typeof(E).Name, identifier));
                             targets[index] = target;
                             changed = true;
                         }
@@ -598,7 +1021,7 @@ namespace Tweakificator
                         var target = typeof(E).GetConstructor(new[] { typeof(IntPtr) }).Invoke(new object[] { ClassInjector.DerivedConstructorPointer<E>() });
                         identifierProperty.SetValue(target, identifier);
                         serializer.Populate(new JTokenReader(source), target);
-                        PluginComponent.log.LogMessage(string.Format("Adding {0} {1}.", typeof(E).Name, identifier));
+                        BepInExLoader.log.LogMessage(string.Format("Adding {0} {1}.", typeof(E).Name, identifier));
                         targets.Add((E)target);
                         changed = true;
                     }
@@ -620,7 +1043,11 @@ namespace Tweakificator
                 var element = new JObject();
                 foreach (var property in propertys)
                 {
-                    element[property.Name] = JToken.FromObject(property.GetValue(source[i]));
+                    var propertyValue = property.GetValue(source[i]);
+                    if (propertyValue != null)
+                    {
+                        element[property.Name] = JToken.FromObject(propertyValue, serializer);
+                    }
                 }
                 target[identifier] = element;
             }
@@ -691,6 +1118,43 @@ namespace Tweakificator
         }
     }
 
+    class EnumFlagsConverterByte<E> : JsonConverter where E : Enum
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(E);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            byte flags = 0;
+            foreach(var flagString in JToken.ReadFrom(reader).Value<string>().Split('|'))
+            {
+                try
+                {
+                    E target = (E)Enum.Parse(objectType, flagString, true);
+                    flags |= (byte)(object)target;
+                }
+                catch { }
+            }
+            return (E)(object)flags;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var sourceFlags = (byte)value;
+            var flagsString = "";
+            foreach (var flag in Enum.GetValues(typeof(E)))
+            {
+                if ((sourceFlags & (byte)flag) != 0)
+                {
+                    flagsString = ((flagsString.Length > 0) ? flagsString + "|" : "") + Enum.GetName(typeof(E), flag);
+                }
+            }
+            writer.WriteValue(flagsString);
+        }
+    }
+
     class StringArrayConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
@@ -715,6 +1179,30 @@ namespace Tweakificator
         }
     }
 
+    class ListConverter<T> : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(Il2CppSystem.Collections.Generic.List<T>);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var source = (JArray)JToken.ReadFrom(reader);
+            var target = new Il2CppSystem.Collections.Generic.List<T>(source.Count);
+            for(int i = 0; i < source.Count; ++i) target[i] = serializer.Deserialize<T>(new JTokenReader(source[i]));
+            return target;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var source = (Il2CppSystem.Collections.Generic.List<T>)value;
+            writer.WriteStartArray();
+            foreach(var element in source) serializer.Serialize(writer, element);
+            writer.WriteEndArray();
+        }
+    }
+
     class Texture2DProxyConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
@@ -734,37 +1222,74 @@ namespace Tweakificator
         }
     }
 
+    class SpriteConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(Sprite);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            return PluginComponent.getIcon(JToken.ReadFrom(reader).Value<string>());
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var sprite = (Sprite)value;
+            writer.WriteValue(sprite.name);
+        }
+    }
+
     public static class ResourceExt
     {
-        static System.Collections.Generic.Dictionary<string, Texture> loadedTextures = new System.Collections.Generic.Dictionary<string, Texture>();
+        static System.Collections.Generic.Dictionary<string, Texture2D> loadedTextures = new System.Collections.Generic.Dictionary<string, Texture2D>();
 
-        public static Texture FindTexture(string name)
+        public static void RegisterTexture(string name, Texture2D texture)
         {
-            Texture result;
+            loadedTextures[name] = texture;
+        }
+
+        public static Texture2D FindTexture(string name)
+        {
+            BepInExLoader.log.LogMessage(string.Format("Searching for texture '{0}'", name));
+            Texture2D result;
             if (loadedTextures.TryGetValue(name, out result))
             {
                 return result;
             }
+            else if (File.Exists(Path.Combine(BepInExLoader.texturesFolder, name + ".png")))
+            {
+                var tempTexture = new Texture2D(2, 2, TextureFormat.RGB24, false, false);
+                tempTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(Path.Combine(BepInExLoader.texturesFolder, name + ".png"))), false);
+                var texture = new Texture2D(tempTexture.width, tempTexture.height, TextureFormat.RGB24, true, true);
+                texture.SetPixels(tempTexture.GetPixels());
+                texture.Apply();
+                texture.Compress(false);
+                loadedTextures.Add(name, texture);
+                GameObject.Destroy(tempTexture);
+                return texture;
+            }
             else
             {
-                Texture[] allTextures = Resources.FindObjectsOfTypeAll<Texture>();
-                foreach (Texture tex in allTextures)
+                Texture2D[] allTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
+                foreach (Texture2D texture in allTextures)
                 {
-                    if (tex.name == name)
+                    if (texture.name == name)
                     {
-                        loadedTextures.Add(name, tex);
-                        return tex;
+                        loadedTextures.Add(name, texture);
+                        return texture;
                     }
                 }
 
-                allTextures = Resources.LoadAll<Texture>("");
+                allTextures = Resources.LoadAll<Texture2D>("");
 
-                foreach (Texture tex in allTextures)
+                foreach (Texture2D texture in allTextures)
                 {
-                    if (tex.name == name)
+                    if (texture.name == name)
                     {
-                        loadedTextures.Add(name, tex);
-                        return tex;
+                        loadedTextures.Add(name, texture);
+                        return texture;
                     }
                 }
 
