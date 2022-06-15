@@ -5,3 +5,4 @@ Tweakificator/obj/*
 Tweakificator/bin/*
 Libraries/*.dll
 .vs/*
+MigrationBackup/*
