@@ -1,13 +1,12 @@
 ﻿using System;
+using System.Linq;
 using UnhollowerBaseLib;
-using HarmonyLib;
 using UnityEngine;
 using Newtonsoft.Json;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 using UnhollowerRuntimeLib;
-using UnityEngine.Experimental.Rendering;
 
 namespace Tweakificator
 {
@@ -26,10 +25,12 @@ namespace Tweakificator
             new ObjectConverter<Quaternion>("x", "y", "z", "w"),
             new ObjectConverter<BuildableObjectTemplate.DragMode>("name", "isDefault"),
             new ObjectConverter<BuildableObjectTemplate.FluidBox>("localOffset", "connectorFlags"),
+            new ObjectConverter<ResearchTemplate.ResearchTemplateItemInput>("identifier", "amount"),
 
             new ArrayMapConverter<CraftingRecipe.CraftingRecipeItemInput>("identifier", "amount"),
             new ArrayMapConverter<CraftingRecipe.CraftingRecipeElementalInput>("identifier", "amount_str"),
             new ArrayMapConverter<ItemTemplate.ItemMode>("identifier", "name", "icon"),
+            new ArrayMapConverter<ResearchTemplate.ResearchTemplateItemInput>("identifier", "amount"),
 
             new ListConverter<Vector3Int>(),
             new ListConverter<string>(),
@@ -51,6 +52,7 @@ namespace Tweakificator
             new EnumFlagsConverter<TerrainBlockType.TerrainTypeFlags>(),
             new EnumFlagsConverter<BuildableObjectTemplate.PipeConnectorFlags>(),
             new EnumFlagsConverter<BuildableObjectTemplate.PoleGridTypes>(),
+            new EnumFlagsConverter<ResearchTemplate.ResearchTemplateFlags>(),
 
             new EnumFlagsConverterByte<BuildableObjectTemplate.SimulationSleepFlags>(),
 
@@ -61,7 +63,14 @@ namespace Tweakificator
             new SpriteConverter()
         };
 
-        private static int[] iconSizes = new int[] { 64, 96, 128, 256, 512 };
+        private static System.Collections.Generic.Dictionary<int, int> iconSizes = new System.Collections.Generic.Dictionary<int, int>() {
+            { 0, 1024 },
+            { 512, 512 },
+            { 256, 256 },
+            { 128, 128 },
+            { 96, 96 },
+            { 64, 64 }
+        };
 
         public static BepInEx.Logging.ManualLogSource log;
 
@@ -100,7 +109,7 @@ namespace Tweakificator
                 }
                 else
                 {
-                    log.LogMessage(string.Format("Failed to dump {0}", field.Name));
+                    log.LogError(string.Format("Failed to dump {0}", field.Name));
                 }
             }
             return (D)dump;
@@ -111,20 +120,62 @@ namespace Tweakificator
             return Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
         }
 
+        private static Texture2D duplicateTexture(Texture2D sourceTexture)
+        {
+            RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+
+            Graphics.Blit(sourceTexture, renderTexture);
+            RenderTexture previous = RenderTexture.active;
+            RenderTexture.active = renderTexture;
+            Texture2D readableTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false, true);
+            readableTexture.ReadPixels(new Rect(0, 0, sourceTexture.width, sourceTexture.height), 0, 0);
+            readableTexture.Apply();
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(renderTexture);
+            return readableTexture;
+        }
+
+        private static Texture2D resizeTexture(Texture2D inputTexture, int width, int height)
+        {
+            var outputTexture = new Texture2D(width, height, inputTexture.format, false, true);
+            Graphics.ConvertTexture(inputTexture, outputTexture);
+            return outputTexture;
+        }
+
+        internal static Sprite getIcon(string name)
+        {
+            return ResourceDB.getIcon(name, 256);
+        }
+
         public static void ResourceDBInitOnApplicationStart()
         {
-            foreach (var filename in Directory.EnumerateFiles(BepInExLoader.iconsFolder, "*.png"))
+            var filenames = Directory.EnumerateFiles(BepInExLoader.iconsFolder, "*.png").ToArray<string>();
+            BepInExLoader.log.LogMessage(string.Format("Loading {0} custom icons.", filenames.Length));
+            foreach (var filename in filenames)
             {
-                var path = Path.Combine(BepInExLoader.iconsFolder, filename);
-                var identifier = Path.GetFileNameWithoutExtension(path);
-                log.LogMessage(string.Format("Loading icon '{0}' from '{1}'", identifier, filename));
-
-                var iconTexture = new Texture2D(2, 2);
-                iconTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(path)), true);
-                ResourceDB.dict_icons[0][GameRoot.generateStringHash64(identifier + "_0")] = createSprite(iconTexture);
-                foreach (var size in iconSizes)
+                var iconPath = Path.Combine(BepInExLoader.iconsFolder, filename);
+                var identifier = Path.GetFileNameWithoutExtension(iconPath);
+                if (!ResourceDB.dict_icons[0].ContainsKey(GameRoot.generateStringHash64(identifier)))
                 {
-                    ResourceDB.dict_icons[size][GameRoot.generateStringHash64(identifier + "_" + size.ToString())] = createSprite(resizeTexture(iconTexture, size, size));
+                    var watch = new System.Diagnostics.Stopwatch();
+                    watch.Start();
+                    var iconTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                    iconTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(iconPath)), true);
+                    int index = 0;
+                    foreach (var entry in iconSizes)
+                    {
+                        var sizeId = entry.Key;
+                        var size = entry.Value;
+                        var sizeIdentifier = identifier + ((sizeId > 0) ? "_" + sizeId.ToString() : "");
+                        var texture = (sizeId > 0) ? resizeTexture(iconTexture, size, size) : iconTexture;
+                        texture.name = sizeIdentifier;
+                        ResourceDB.dict_icons[sizeId][GameRoot.generateStringHash64(sizeIdentifier)] = createSprite(texture);
+
+                        ++index;
+                    }
+
+                    watch.Stop();
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Loading icon '{0}' from '{1}' took {2}ms", identifier, iconPath, watch.ElapsedMilliseconds));
                 }
             }
 
@@ -132,7 +183,7 @@ namespace Tweakificator
             if (BepInExLoader.forceDump.Value || !File.Exists(listPath))
             {
                 var iconNames = new System.Collections.Generic.List<string>();
-                foreach (var entry in ResourceDB.dict_icons[0]) iconNames.Add(entry.Value.name);
+                foreach (var entry in ResourceDB.dict_icons[0]) iconNames.Add(entry.Value.name);// string.Format("{0}: {1}", entry.Value.name, entry.Value.texture.format.ToString()));
                 File.WriteAllText(listPath, string.Join("\r\n", iconNames));
             }
 
@@ -150,12 +201,12 @@ namespace Tweakificator
                             Texture2D texture;
                             if (!cache.TryGetValue(sprite.texture.name, out texture))
                             {
-                                log.LogMessage(string.Format("Converting texture '{0}'", sprite.texture.name));
+                                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Converting icon texture '{0}'", sprite.texture.name));
                                 texture = duplicateTexture(sprite.texture);
                                 cache[sprite.texture.name] = texture;
                             }
 
-                            log.LogMessage(string.Format("Dumping icon '{0}'", sprite.name));
+                            if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Dumping icon '{0}'", sprite.name));
                             var croppedTexture = new Texture2D(Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), TextureFormat.RGBA32, false);
                             var pixels = texture.GetPixels(Mathf.FloorToInt(sprite.textureRect.x), Mathf.FloorToInt(sprite.textureRect.y), Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height));
                             croppedTexture.SetPixels(pixels);
@@ -184,7 +235,7 @@ namespace Tweakificator
 
             if (BepInExLoader.patchDataItemChanges != null && BepInExLoader.patchDataItemChanges.ContainsKey(__instance.identifier))
             {
-                log.LogMessage(string.Format("Patching item {0}", __instance.identifier));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching item {0}", __instance.identifier));
                 var changes = BepInExLoader.patchDataItemChanges[__instance.identifier] as JObject;
                 if (changes != null)
                 {
@@ -221,12 +272,12 @@ namespace Tweakificator
                     }
                 }
 
-                log.LogMessage(string.Format("Adding item {0}", entry.Key));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Adding item {0}", entry.Key));
 
                 ItemTemplate instance;
                 if (template != null)
                 {
-                    log.LogMessage(string.Format("Using template {0}", template.identifier));
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Using template {0}", template.identifier));
                     instance = Instantiate<ItemTemplate>(template);
                 }
                 else
@@ -239,6 +290,8 @@ namespace Tweakificator
                 JsonConvert.PopulateObject(entry.Value.ToString(), instance, serializerSettings);
                 result[index++] = instance;
             }
+
+            BepInExLoader.log.LogMessage(string.Format("Patched {0} items and added {1} items.", BepInExLoader.patchDataItemChanges != null ? BepInExLoader.patchDataItemChanges.Count : 0, BepInExLoader.patchDataItemAdditions != null ? BepInExLoader.patchDataItemAdditions.Count : 0));
 
             __result = result;
         }
@@ -253,7 +306,7 @@ namespace Tweakificator
 
             if (BepInExLoader.patchDataRecipeChanges != null && BepInExLoader.patchDataRecipeChanges.ContainsKey(__instance.identifier))
             {
-                log.LogMessage(string.Format("Patching recipe {0}", __instance.identifier));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching recipe {0}", __instance.identifier));
                 var changes = BepInExLoader.patchDataRecipeChanges[__instance.identifier] as JObject;
 
                 JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
@@ -288,11 +341,11 @@ namespace Tweakificator
                     }
                 }
 
-                log.LogMessage(string.Format("Adding recipe {0}", entry.Key));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Adding recipe {0}", entry.Key));
                 CraftingRecipe instance;
                 if (template != null)
                 {
-                    log.LogMessage(string.Format("Using template {0}", template.identifier));
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Using template {0}", template.identifier));
                     instance = Instantiate<CraftingRecipe>(template);
                 }
                 else
@@ -310,6 +363,8 @@ namespace Tweakificator
                 result[index++] = instance;
             }
 
+            BepInExLoader.log.LogMessage(string.Format("Patched {0} recipes and added {1} recipes.", BepInExLoader.patchDataRecipeChanges != null ? BepInExLoader.patchDataRecipeChanges.Count : 0, BepInExLoader.patchDataRecipeAdditions!= null ? BepInExLoader.patchDataRecipeAdditions.Count : 0));
+
             __result = result;
         }
 
@@ -323,7 +378,7 @@ namespace Tweakificator
 
             if (BepInExLoader.patchDataTerrainChanges != null && BepInExLoader.patchDataTerrainChanges.ContainsKey(__instance.identifier))
             {
-                log.LogMessage(string.Format("Patching terrain block {0}", __instance.identifier));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching terrain block {0}", __instance.identifier));
                 var changes = BepInExLoader.patchDataTerrainChanges[__instance.identifier] as JObject;
                 if (changes != null)
                 {
@@ -332,22 +387,107 @@ namespace Tweakificator
                         __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].Value<string>());
                         changes.Remove("texture_abledo");
                     }
+                    if (changes.ContainsKey("texture_side_abledo"))
+                    {
+                        __instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_side_abledo"].Value<string>());
+                        changes.Remove("texture_side_abledo");
+                    }
+                    if (changes.ContainsKey("texture_bottom_abledo"))
+                    {
+                        __instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_abledo"].Value<string>());
+                        changes.Remove("texture_bottom_abledo");
+                    }
+                    if (changes.ContainsKey("texture_height"))
+                    {
+                        __instance.texture_height = (Texture2D)ResourceExt.FindTexture(changes["texture_height"].Value<string>());
+                        changes.Remove("texture_height");
+                    }
+                    if (changes.ContainsKey("texture_side_height"))
+                    {
+                        __instance.texture_side_height = (Texture2D)ResourceExt.FindTexture(changes["texture_side_height"].Value<string>());
+                        changes.Remove("texture_side_height");
+                    }
+                    if (changes.ContainsKey("texture_side_mask"))
+                    {
+                        __instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask"].Value<string>());
+                        changes.Remove("texture_side_mask");
+                    }
                     JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
                 }
             }
         }
 
+        private static bool hasRun_researchTemplates = false;
         private static bool hasRun_terrainBlockTemplates = false;
         private static bool hasRun_terrainBlockScratchGroups = false;
         public static void onItemTemplateManagerInitOnApplicationStart()
         {
-            if(!hasRun_terrainBlockScratchGroups && ItemTemplateManager.dict_terrainBlockScratchGroups != null && ItemTemplateManager.dict_terrainBlockScratchGroups.Count > 0)
+            if (!hasRun_researchTemplates && ItemTemplateManager.dict_researchTemplates != null && ItemTemplateManager.dict_researchTemplates.Count > 0)
+            {
+                hasRun_researchTemplates = true;
+
+                foreach (var entry in BepInExLoader.patchDataResearchAdditions)
+                {
+                    var source = (JObject)entry.Value;
+                    if (source == null) throw new Exception("Invalid research:\r\n" + entry.Value.ToString());
+
+                    ResearchTemplate template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source.Value<string>("__template");
+                        foreach (var templateEntry in ItemTemplateManager.dict_researchTemplates.Values)
+                        {
+                            if (templateEntry.identifier == templateIdentifier)
+                            {
+                                template = templateEntry;
+                                break;
+                            }
+                        }
+                        if (template == null)
+                        {
+                            log.LogError(string.Format("Template research {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Adding research {0}", entry.Key));
+
+                    ResearchTemplate instance;
+                    if (template != null)
+                    {
+                        if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Using template {0}", template.identifier));
+                        instance = Instantiate<ResearchTemplate>(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<ResearchTemplate>();
+                        instance.list_blastFurnaceModes_str = new Il2CppSystem.Collections.Generic.List<string>(0);
+                        instance.list_craftingUnlocks_str = new Il2CppSystem.Collections.Generic.List<string>(0);
+                        instance.list_researchDependencies_str = new Il2CppSystem.Collections.Generic.List<string>(0);
+                        instance.list_tutorialMessageIdentifierUnlocks = new Il2CppSystem.Collections.Generic.List<string>(0);
+                        instance.input_data = new Il2CppReferenceArray<ResearchTemplate.ResearchTemplateItemInput>(0);
+                    }
+
+                    instance.identifier = entry.Key;
+                    instance.id = GameRoot.generateStringHash64("rt_" + instance.identifier);
+                    instance.id32 = GameRoot.generateStringHash32("rt_" + instance.identifier);
+
+                    JsonConvert.PopulateObject(source.ToString(), instance, serializerSettings);
+
+                    ItemTemplateManager.dict_researchTemplates[instance.id] = instance;
+
+                    instance.onLoad();
+                }
+
+                BepInExLoader.log.LogMessage(string.Format("Patched {0} research and added {1} research.", BepInExLoader.patchDataResearchChanges != null ? BepInExLoader.patchDataResearchChanges.Count : 0, BepInExLoader.patchDataResearchAdditions != null ? BepInExLoader.patchDataResearchAdditions.Count : 0));
+            }
+
+            if (!hasRun_terrainBlockScratchGroups && ItemTemplateManager.dict_terrainBlockScratchGroups != null && ItemTemplateManager.dict_terrainBlockScratchGroups.Count > 0)
             {
                 hasRun_terrainBlockScratchGroups = true;
 
                 foreach (var entry in BepInExLoader.patchDataTerrainAdditions)
                 {
-                    log.LogMessage(string.Format("Generate scratch group for {0}", entry.Key));
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Generate scratch group for {0}", entry.Key));
 
                     var source = (JObject)entry.Value;
                     if (source == null) throw new Exception("Invalid terrain block:\r\n" + entry.Value.ToString());
@@ -366,11 +506,15 @@ namespace Tweakificator
 
                     var instance = Instantiate<TerrainBlockScratchGroup>(template);
                     instance.terrainBlockType_identifier = entry.Key;
-                    instance.id = GameRoot.generateStringHash64("tbsg_"+instance.terrainBlockType_identifier);
+                    instance.id = GameRoot.generateStringHash64("tbsg_" + instance.terrainBlockType_identifier);
                     instance.id32 = GameRoot.generateStringHash32("tbsg_" + instance.terrainBlockType_identifier);
 
                     ItemTemplateManager.dict_terrainBlockScratchGroups[instance.id] = instance;
+
+                    instance.onLoad();
                 }
+
+                BepInExLoader.log.LogMessage(string.Format("Added {0} terrain block scratch groups.", BepInExLoader.patchDataTerrainAdditions != null ? BepInExLoader.patchDataTerrainAdditions.Count : 0));
             }
 
             if (!hasRun_terrainBlockTemplates && ItemTemplateManager.dict_terrainBlockTemplates != null && ItemTemplateManager.dict_terrainBlockTemplates.Count > 0)
@@ -400,12 +544,12 @@ namespace Tweakificator
                         }
                     }
 
-                    log.LogMessage(string.Format("Adding terrain block {0}", entry.Key));
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Adding terrain block {0}", entry.Key));
 
                     TerrainBlockType instance;
                     if (template != null)
                     {
-                        log.LogMessage(string.Format("Using template {0}", template.identifier));
+                        if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Using template {0}", template.identifier));
                         instance = Instantiate<TerrainBlockType>(template);
                     }
                     else
@@ -423,10 +567,39 @@ namespace Tweakificator
                         instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(source["texture_abledo"].Value<string>());
                         source.Remove("texture_abledo");
                     }
+                    if (source.ContainsKey("texture_side_abledo"))
+                    {
+                        instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(source["texture_side_abledo"].Value<string>());
+                        source.Remove("texture_side_abledo");
+                    }
+                    if (source.ContainsKey("texture_bottom_abledo"))
+                    {
+                        instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(source["texture_bottom_abledo"].Value<string>());
+                        source.Remove("texture_bottom_abledo");
+                    }
+                    if (source.ContainsKey("texture_height"))
+                    {
+                        instance.texture_height = (Texture2D)ResourceExt.FindTexture(source["texture_height"].Value<string>());
+                        source.Remove("texture_height");
+                    }
+                    if (source.ContainsKey("texture_side_height"))
+                    {
+                        instance.texture_side_height = (Texture2D)ResourceExt.FindTexture(source["texture_side_height"].Value<string>());
+                        source.Remove("texture_side_height");
+                    }
+                    if (source.ContainsKey("texture_side_mask"))
+                    {
+                        instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(source["texture_side_mask"].Value<string>());
+                        source.Remove("texture_side_mask");
+                    }
                     JsonConvert.PopulateObject(source.ToString(), instance, serializerSettings);
 
                     ItemTemplateManager.dict_terrainBlockTemplates[instance.id] = instance;
+
+                    instance.onLoad();
                 }
+
+                BepInExLoader.log.LogMessage(string.Format("Patched {0} terrain blocks and added {1} terrain blocks.", BepInExLoader.patchDataTerrainChanges != null ? BepInExLoader.patchDataTerrainChanges.Count : 0, BepInExLoader.patchDataTerrainAdditions != null ? BepInExLoader.patchDataTerrainAdditions.Count : 0));
             }
         }
 
@@ -467,12 +640,12 @@ namespace Tweakificator
                     }
                 }
 
-                log.LogMessage(string.Format("Adding building {0}", entry.Key));
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Adding building {0}", entry.Key));
 
                 BuildableObjectTemplate instance;
                 if (template != null)
                 {
-                    log.LogMessage(string.Format("Using template {0}", template.identifier));
+                    if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Using template {0}", template.identifier));
                     instance = Instantiate(template);
                 }
                 else
@@ -485,40 +658,25 @@ namespace Tweakificator
                 result[index++] = instance;
             }
 
+            BepInExLoader.log.LogMessage(string.Format("Patched {0} buildings and added {1} buildings.", BepInExLoader.patchDataBuildingChanges != null ? BepInExLoader.patchDataBuildingChanges.Count : 0, BepInExLoader.patchDataBuildingAdditions != null ? BepInExLoader.patchDataBuildingAdditions.Count : 0));
+
             __result = result;
         }
 
-        private static Texture2D duplicateTexture(Texture2D sourceTexture)
+        public static void onLoadResearchTemplate(ResearchTemplate __instance)
         {
-            RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+            var path = Path.Combine(BepInExLoader.researchDumpFolder, __instance.identifier + ".json");
+            if (BepInExLoader.forceDump.Value || !File.Exists(path))
+            {
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ResearchDump, ResearchTemplate>(__instance), Formatting.Indented, serializerSettings));
+            }
 
-            Graphics.Blit(sourceTexture, renderTexture);
-            RenderTexture previous = RenderTexture.active;
-            RenderTexture.active = renderTexture;
-            Texture2D readableTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false);
-            readableTexture.ReadPixels(new Rect(0, 0, sourceTexture.width, sourceTexture.height), 0, 0);
-            readableTexture.Apply();
-            RenderTexture.active = previous;
-            RenderTexture.ReleaseTemporary(renderTexture);
-            return readableTexture;
-        }
-
-        private static Texture2D resizeTexture(Texture2D texture2D, int width, int height)
-        {
-            RenderTexture rt = new RenderTexture(width, height, 24);
-            var previousActive = RenderTexture.active;
-            RenderTexture.active = rt;
-            Graphics.Blit(texture2D, rt);
-            Texture2D result = new Texture2D(width, height);
-            result.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            result.Apply();
-            RenderTexture.active = previousActive;
-            return result;
-        }
-
-        internal static Sprite getIcon(string name)
-        {
-            return ResourceDB.getIcon(name, 256);
+            if (BepInExLoader.patchDataResearchChanges != null && BepInExLoader.patchDataResearchChanges.ContainsKey(__instance.identifier))
+            {
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching research {0}", __instance.identifier));
+                var changes = BepInExLoader.patchDataResearchChanges[__instance.identifier] as JObject;
+                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+            }
         }
 
 #pragma warning disable CS0649
@@ -858,6 +1016,30 @@ namespace Tweakificator
             //public AudioClip resourceConverter_audioClip_active;
         }
 
+        public struct ResearchDump
+        {
+            public string identifier;
+            public string modIdentifier;
+            public string name;
+            public string icon_identifier;
+            public ResearchTemplate.ResearchTemplateFlags flags;
+            public bool isInternal;
+            public bool manualEndlessResearch;
+            public string manualEndlessResearchTemplate_str;
+            public string description;
+            public Il2CppReferenceArray<ResearchTemplate.ResearchTemplateItemInput> input_data;
+            public Il2CppSystem.Collections.Generic.List<string> list_researchDependencies_str;
+            public Il2CppSystem.Collections.Generic.List<string> list_craftingUnlocks_str;
+            public Il2CppSystem.Collections.Generic.List<string> list_blastFurnaceModes_str;
+            public Il2CppSystem.Collections.Generic.List<string> list_tutorialMessageIdentifierUnlocks;
+            public string mapScanner_ore_identifier;
+            public string mapScanner_reservoir_identifier;
+            public int inventorySize_additionalInventorySlots;
+            public int endlessResearch_minLevelToDisplay;
+            public string characterCraftingSpeed_additionalDecrementPercentage_str;
+            public string miningDrillSpeed_miningTimeMultiplier_str;
+        }
+
         public struct Texture2DProxy
         {
             public string name;
@@ -1005,13 +1187,13 @@ namespace Tweakificator
 
                         if(isEmpty)
                         {
-                            BepInExLoader.log.LogMessage(string.Format("Deleting {0} {1}.", typeof(E).Name, identifier));
+                            if(BepInExLoader.verbose.Value) BepInExLoader.log.LogInfo(string.Format("Deleting {0} {1}.", typeof(E).Name, identifier));
                             targets.RemoveAt(index);
                             changed = true;
                         }
                         else
                         {
-                            BepInExLoader.log.LogMessage(string.Format("Patching {0} {1}.", typeof(E).Name, identifier));
+                            if (BepInExLoader.verbose.Value) BepInExLoader.log.LogInfo(string.Format("Patching {0} {1}.", typeof(E).Name, identifier));
                             targets[index] = target;
                             changed = true;
                         }
@@ -1021,7 +1203,7 @@ namespace Tweakificator
                         var target = typeof(E).GetConstructor(new[] { typeof(IntPtr) }).Invoke(new object[] { ClassInjector.DerivedConstructorPointer<E>() });
                         identifierProperty.SetValue(target, identifier);
                         serializer.Populate(new JTokenReader(source), target);
-                        BepInExLoader.log.LogMessage(string.Format("Adding {0} {1}.", typeof(E).Name, identifier));
+                        if (BepInExLoader.verbose.Value) BepInExLoader.log.LogInfo(string.Format("Adding {0} {1}.", typeof(E).Name, identifier));
                         targets.Add((E)target);
                         changed = true;
                     }
@@ -1190,7 +1372,7 @@ namespace Tweakificator
         {
             var source = (JArray)JToken.ReadFrom(reader);
             var target = new Il2CppSystem.Collections.Generic.List<T>(source.Count);
-            for(int i = 0; i < source.Count; ++i) target[i] = serializer.Deserialize<T>(new JTokenReader(source[i]));
+            for(int i = 0; i < source.Count; ++i) target.Add(serializer.Deserialize<T>(new JTokenReader(source[i])));
             return target;
         }
 
@@ -1244,6 +1426,8 @@ namespace Tweakificator
     public static class ResourceExt
     {
         static System.Collections.Generic.Dictionary<string, Texture2D> loadedTextures = new System.Collections.Generic.Dictionary<string, Texture2D>();
+        static Texture2D[] allTextures1 = null;
+        static Texture2D[] allTextures2 = null;
 
         public static void RegisterTexture(string name, Texture2D texture)
         {
@@ -1252,28 +1436,35 @@ namespace Tweakificator
 
         public static Texture2D FindTexture(string name)
         {
-            BepInExLoader.log.LogMessage(string.Format("Searching for texture '{0}'", name));
+            var tweakPath = Path.Combine(BepInExLoader.texturesFolder, name + ".png");
             Texture2D result;
             if (loadedTextures.TryGetValue(name, out result))
             {
                 return result;
             }
-            else if (File.Exists(Path.Combine(BepInExLoader.texturesFolder, name + ".png")))
+            else if (File.Exists(tweakPath))
             {
-                var tempTexture = new Texture2D(2, 2, TextureFormat.RGB24, false, false);
-                tempTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(Path.Combine(BepInExLoader.texturesFolder, name + ".png"))), false);
+                var watch = new System.Diagnostics.Stopwatch();
+                watch.Start();
+                var tempTexture = new Texture2D(2, 2, TextureFormat.RGBA32, true, true);
+                tempTexture.LoadImage(new Il2CppStructArray<byte>(File.ReadAllBytes(tweakPath)), false);
                 var texture = new Texture2D(tempTexture.width, tempTexture.height, TextureFormat.RGB24, true, true);
                 texture.SetPixels(tempTexture.GetPixels());
-                texture.Apply();
+                texture.Apply(true);
                 texture.Compress(false);
+                texture.Apply();
+                watch.Stop();
+                if (BepInExLoader.verbose.Value) BepInExLoader.log.LogInfo(string.Format("Loading texture '{0}' from '{1}' took {2}ms", name, tweakPath, watch.ElapsedMilliseconds));
                 loadedTextures.Add(name, texture);
                 GameObject.Destroy(tempTexture);
                 return texture;
             }
             else
             {
-                Texture2D[] allTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
-                foreach (Texture2D texture in allTextures)
+                if (BepInExLoader.verbose.Value) BepInExLoader.log.LogInfo(string.Format("Searching for texture '{0}'", name));
+
+                if(allTextures1 == null) allTextures1 = Resources.FindObjectsOfTypeAll<Texture2D>();
+                foreach (Texture2D texture in allTextures1)
                 {
                     if (texture.name == name)
                     {
@@ -1282,9 +1473,8 @@ namespace Tweakificator
                     }
                 }
 
-                allTextures = Resources.LoadAll<Texture2D>("");
-
-                foreach (Texture2D texture in allTextures)
+                if (allTextures2 == null) allTextures2 = Resources.LoadAll<Texture2D>("");
+                foreach (Texture2D texture in allTextures2)
                 {
                     if (texture.name == name)
                     {
@@ -1294,9 +1484,23 @@ namespace Tweakificator
                 }
 
                 loadedTextures.Add(name, null);
-                Debug.LogError("Could not find texture: " + name);
+                BepInExLoader.log.LogError("Could not find texture: " + name);
                 return null;
             }
+        }
+
+        public static byte[] ReadAllBytes(this BinaryReader reader)
+        {
+            const int bufferSize = 4096;
+            using (var ms = new MemoryStream())
+            {
+                byte[] buffer = new byte[bufferSize];
+                int count;
+                while ((count = reader.Read(buffer, 0, buffer.Length)) != 0)
+                    ms.Write(buffer, 0, count);
+                return ms.ToArray();
+            }
+
         }
     }
 }

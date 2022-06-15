@@ -3,11 +3,9 @@ using BepInEx.Configuration;
 using UnhollowerRuntimeLib;
 using HarmonyLib;
 using UnityEngine;
-using Object = UnityEngine.Object;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 using System.IO;
-using static ItemTemplateManager;
 
 namespace Tweakificator
 {
@@ -18,12 +16,13 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.3.0";
+            VERSION = "1.4.0";
 
         public static BepInEx.Logging.ManualLogSource log;
 
         public static ConfigEntry<bool> forceDump;
         public static ConfigEntry<bool> dumpIcons;
+        public static ConfigEntry<bool> verbose;
 
         public static string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         public static string dumpFolder = Path.Combine(assemblyFolder, "Tweakificator");
@@ -31,6 +30,7 @@ namespace Tweakificator
         public static string recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
         public static string terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
         public static string buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
+        public static string researchDumpFolder = Path.Combine(dumpFolder, "Research");
         public static string iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
         public static string tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
         public static string iconsFolder = Path.Combine(tweaksFolder, "icons");
@@ -43,10 +43,12 @@ namespace Tweakificator
         public static JObject patchDataRecipeChanges = new JObject();
         public static JObject patchDataTerrainChanges = new JObject();
         public static JObject patchDataBuildingChanges = new JObject();
+        public static JObject patchDataResearchChanges = new JObject();
         public static JObject patchDataItemAdditions = new JObject();
         public static JObject patchDataRecipeAdditions = new JObject();
         public static JObject patchDataTerrainAdditions = new JObject();
         public static JObject patchDataBuildingAdditions = new JObject();
+        public static JObject patchDataResearchAdditions = new JObject();
 
         public BepInExLoader()
         {
@@ -57,6 +59,7 @@ namespace Tweakificator
         {
             forceDump = Config.Bind("Dump", "forceDump", false, "Overwrite existing dump files.");
             dumpIcons = Config.Bind("Dump", "dumpIcons", false, "Dump icon files. (very slow)");
+            verbose = Config.Bind("Log", "verbose", false, "Log extra information.");
 
             if (!Directory.Exists(dumpFolder))
             {
@@ -68,6 +71,7 @@ namespace Tweakificator
             if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
             if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
             if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
+            if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
@@ -97,6 +101,7 @@ namespace Tweakificator
                     if(changes.ContainsKey("recipes")) patchDataRecipeChanges = changes["recipes"] as JObject;
                     if(changes.ContainsKey("terrain")) patchDataTerrainChanges = changes["terrain"] as JObject;
                     if(changes.ContainsKey("buildings")) patchDataBuildingChanges = changes["buildings"] as JObject;
+                    if(changes.ContainsKey("research")) patchDataResearchChanges = changes["research"] as JObject;
                 }
                 if (patchData.ContainsKey("additions"))
                 {
@@ -105,6 +110,7 @@ namespace Tweakificator
                     if(additions.ContainsKey("recipes")) patchDataRecipeAdditions = additions["recipes"] as JObject;
                     if(additions.ContainsKey("terrain")) patchDataTerrainAdditions = additions["terrain"] as JObject;
                     if(additions.ContainsKey("buildings")) patchDataBuildingAdditions = additions["buildings"] as JObject;
+                    if(additions.ContainsKey("research")) patchDataResearchAdditions = additions["research"] as JObject;
                 }
             }
 
@@ -162,6 +168,10 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(BuildableObjectTemplate), "LoadAllBuildableObjectTemplatesInBuild");
                 post = AccessTools.Method(typeof(PluginComponent), "LoadAllBuildableObjectTemplatesInBuild");
                 harmony.Patch(original, postfix: new HarmonyMethod(post));
+
+                original = AccessTools.Method(typeof(ResearchTemplate), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadResearchTemplate");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
             }
             catch
             {
