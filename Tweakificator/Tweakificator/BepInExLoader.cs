@@ -16,7 +16,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.4.0";
+            VERSION = "1.5.0";
 
         public static BepInEx.Logging.ManualLogSource log;
 
@@ -27,10 +27,12 @@ namespace Tweakificator
         public static string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         public static string dumpFolder = Path.Combine(assemblyFolder, "Tweakificator");
         public static string itemsDumpFolder = Path.Combine(dumpFolder, "Items");
+        public static string elementsDumpFolder = Path.Combine(dumpFolder, "Elements");
         public static string recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
         public static string terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
         public static string buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
         public static string researchDumpFolder = Path.Combine(dumpFolder, "Research");
+        public static string biomeDumpFolder = Path.Combine(dumpFolder, "Biomes");
         public static string iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
         public static string tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
         public static string iconsFolder = Path.Combine(tweaksFolder, "icons");
@@ -40,15 +42,19 @@ namespace Tweakificator
 
         public static JObject patchData = null;
         public static JObject patchDataItemChanges = new JObject();
+        public static JObject patchDataElementChanges = new JObject();
         public static JObject patchDataRecipeChanges = new JObject();
         public static JObject patchDataTerrainChanges = new JObject();
         public static JObject patchDataBuildingChanges = new JObject();
         public static JObject patchDataResearchChanges = new JObject();
+        public static JObject patchDataBiomeChanges = new JObject();
         public static JObject patchDataItemAdditions = new JObject();
+        public static JObject patchDataElementAdditions = new JObject();
         public static JObject patchDataRecipeAdditions = new JObject();
         public static JObject patchDataTerrainAdditions = new JObject();
         public static JObject patchDataBuildingAdditions = new JObject();
         public static JObject patchDataResearchAdditions = new JObject();
+        public static JObject patchDataBiomeAdditions = new JObject();
 
         public BepInExLoader()
         {
@@ -68,10 +74,12 @@ namespace Tweakificator
             }
 
             if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
+            if (!Directory.Exists(elementsDumpFolder)) Directory.CreateDirectory(elementsDumpFolder);
             if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
             if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
             if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
             if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
+            if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
@@ -98,19 +106,23 @@ namespace Tweakificator
                 {
                     var changes = (JObject)patchData["changes"];
                     if(changes.ContainsKey("items")) patchDataItemChanges = changes["items"] as JObject;
+                    if(changes.ContainsKey("elements")) patchDataItemChanges = changes["elements"] as JObject;
                     if(changes.ContainsKey("recipes")) patchDataRecipeChanges = changes["recipes"] as JObject;
                     if(changes.ContainsKey("terrain")) patchDataTerrainChanges = changes["terrain"] as JObject;
                     if(changes.ContainsKey("buildings")) patchDataBuildingChanges = changes["buildings"] as JObject;
                     if(changes.ContainsKey("research")) patchDataResearchChanges = changes["research"] as JObject;
+                    if(changes.ContainsKey("biomes")) patchDataResearchChanges = changes["biomes"] as JObject;
                 }
                 if (patchData.ContainsKey("additions"))
                 {
                     var additions = (JObject)patchData["additions"];
                     if(additions.ContainsKey("items")) patchDataItemAdditions = additions["items"] as JObject;
+                    if(additions.ContainsKey("elements")) patchDataItemAdditions = additions["elements"] as JObject;
                     if(additions.ContainsKey("recipes")) patchDataRecipeAdditions = additions["recipes"] as JObject;
                     if(additions.ContainsKey("terrain")) patchDataTerrainAdditions = additions["terrain"] as JObject;
                     if(additions.ContainsKey("buildings")) patchDataBuildingAdditions = additions["buildings"] as JObject;
                     if(additions.ContainsKey("research")) patchDataResearchAdditions = additions["research"] as JObject;
+                    if(additions.ContainsKey("biomes")) patchDataResearchAdditions = additions["biomes"] as JObject;
                 }
             }
 
@@ -140,6 +152,10 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(ItemTemplate), "LoadAllItemTemplatesInBuild");
                 var post = AccessTools.Method(typeof(PluginComponent), "LoadAllItemTemplatesInBuild");
                 harmony.Patch(original, postfix: new HarmonyMethod(post));
+
+                original = AccessTools.Method(typeof(ElementTemplate), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadElementTemplate");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
 
                 original = AccessTools.Method(typeof(CraftingRecipe), "onLoad");
                 pre = AccessTools.Method(typeof(PluginComponent), "onLoadRecipe");
@@ -172,6 +188,14 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(ResearchTemplate), "onLoad");
                 pre = AccessTools.Method(typeof(PluginComponent), "onLoadResearchTemplate");
                 harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                original = AccessTools.Method(typeof(BiomeTemplate), "onLoad");
+                pre = AccessTools.Method(typeof(PluginComponent), "onLoadBiomeTemplate");
+                harmony.Patch(original, prefix: new HarmonyMethod(pre));
+
+                //original = AccessTools.Method(typeof(SolarPanelGO), "nativePollingUpdate");
+                //pre = AccessTools.Method(typeof(PluginComponent), "SolarPanelGO_nativePollingUpdate");
+                //harmony.Patch(original, prefix: new HarmonyMethod(pre));
             }
             catch
             {

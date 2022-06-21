@@ -7,6 +7,7 @@ using System.IO;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
 using UnhollowerRuntimeLib;
+using HarmonyLib;
 
 namespace Tweakificator
 {
@@ -47,6 +48,7 @@ namespace Tweakificator
 
             new EnumFlagsConverter<ItemTemplate.ItemTemplateFlags>(),
             new EnumFlagsConverter<ItemTemplate.HandheldSubType>(),
+            new EnumFlagsConverter<ElementTemplate.ElementTemplateFlags>(),
             new EnumFlagsConverter<TerrainBlockType.DecorFlags>(),
             new EnumFlagsConverter<TerrainBlockType.OreSpawnFlags>(),
             new EnumFlagsConverter<TerrainBlockType.TerrainTypeFlags>(),
@@ -296,6 +298,25 @@ namespace Tweakificator
             __result = result;
         }
 
+        public static void onLoadElementTemplate(ElementTemplate __instance)
+        {
+            var path = Path.Combine(BepInExLoader.elementsDumpFolder, __instance.identifier + ".json");
+            if (BepInExLoader.forceDump.Value || !File.Exists(path))
+            {
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ElementDump, ElementTemplate>(__instance), Formatting.Indented, serializerSettings));
+            }
+
+            if (BepInExLoader.patchDataElementChanges != null && BepInExLoader.patchDataElementChanges.ContainsKey(__instance.identifier))
+            {
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching element {0}", __instance.identifier));
+                var changes = BepInExLoader.patchDataElementChanges[__instance.identifier] as JObject;
+                if (changes != null)
+                {
+                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                }
+            }
+        }
+
         public static void onLoadRecipe(CraftingRecipe __instance)
         {
             var path = Path.Combine(BepInExLoader.recipesDumpFolder, __instance.identifier + ".json");
@@ -420,6 +441,7 @@ namespace Tweakificator
         private static bool hasRun_researchTemplates = false;
         private static bool hasRun_terrainBlockTemplates = false;
         private static bool hasRun_terrainBlockScratchGroups = false;
+        private static bool hasRun_biomeTemplates = false;
         public static void onItemTemplateManagerInitOnApplicationStart()
         {
             if (!hasRun_researchTemplates && ItemTemplateManager.dict_researchTemplates != null && ItemTemplateManager.dict_researchTemplates.Count > 0)
@@ -601,6 +623,28 @@ namespace Tweakificator
 
                 BepInExLoader.log.LogMessage(string.Format("Patched {0} terrain blocks and added {1} terrain blocks.", BepInExLoader.patchDataTerrainChanges != null ? BepInExLoader.patchDataTerrainChanges.Count : 0, BepInExLoader.patchDataTerrainAdditions != null ? BepInExLoader.patchDataTerrainAdditions.Count : 0));
             }
+
+            if (!hasRun_biomeTemplates && ItemTemplateManager.dict_biomeTemplates != null && ItemTemplateManager.dict_biomeTemplates.Count > 0)
+            {
+                hasRun_biomeTemplates = true;
+
+                foreach(var entry in ItemTemplateManager.dict_biomeTemplates)
+                {
+                    var biome = entry.Value;
+                    var path = Path.Combine(BepInExLoader.biomeDumpFolder, biome.identifier + ".json");
+                    if (BepInExLoader.forceDump.Value || !File.Exists(path))
+                    {
+                        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BiomeDump, BiomeTemplate>(biome), Formatting.Indented, serializerSettings));
+                    }
+
+                    if (BepInExLoader.patchDataBiomeChanges != null && BepInExLoader.patchDataBiomeChanges.ContainsKey(biome.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching biome {0}", biome.identifier));
+                        var changes = BepInExLoader.patchDataResearchChanges[biome.identifier] as JObject;
+                        JsonConvert.PopulateObject(changes.ToString(), biome, serializerSettings);
+                    }
+                }
+            }
         }
 
         public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
@@ -679,6 +723,31 @@ namespace Tweakificator
             }
         }
 
+        public static void onLoadBiomeTemplate(BiomeTemplate __instance)
+        {
+            log.LogWarning("onLoadBiomeTemplate");
+            var path = Path.Combine(BepInExLoader.biomeDumpFolder, __instance.identifier + ".json");
+            if (BepInExLoader.forceDump.Value || !File.Exists(path))
+            {
+                File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BiomeDump, BiomeTemplate>(__instance), Formatting.Indented, serializerSettings));
+            }
+
+            if (BepInExLoader.patchDataBiomeChanges != null && BepInExLoader.patchDataBiomeChanges.ContainsKey(__instance.identifier))
+            {
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching biome {0}", __instance.identifier));
+                var changes = BepInExLoader.patchDataResearchChanges[__instance.identifier] as JObject;
+                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+            }
+        }
+
+        //public static void SolarPanelGO_nativePollingUpdate(SolarPanelGO __instance)
+        //{
+        //    if(__instance.relatedEntityId == 1729382256910270466L && __instance.queryData.totalOutputPerSecond_fpm > 0)
+        //    {
+        //        File.AppendAllText(Path.Combine(BepInExLoader.dumpFolder, "solar.csv"), string.Format("{0}, {1}, {2}\r\n", CubeFactory.DayNightCycle.DayNightCycle.getDayPercentageFloat(), GameRoot.getSunAngleFPM() / 10000.0f, __instance.queryData.totalOutputPerSecond_fpm / 10000.0f));
+        //    }
+        //}
+
 #pragma warning disable CS0649
         private struct ItemDump
         {
@@ -712,6 +781,18 @@ namespace Tweakificator
             public Il2CppStringArray railMiner_terrainTargetList_str;
             public bool isMinecartItem;
             public string trainVehicle_templateIdentifier;
+        }
+
+        private struct ElementDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public string icon_identifier;
+            public ElementTemplate.ElementTemplateFlags flags;
+            public Color pipeContentColor;
+            public int pipeContentType;
+            public string burnable_fuelValueKJPerL_str;
         }
 
         private struct RecipeDump
@@ -1038,6 +1119,20 @@ namespace Tweakificator
             public int endlessResearch_minLevelToDisplay;
             public string characterCraftingSpeed_additionalDecrementPercentage_str;
             public string miningDrillSpeed_miningTimeMultiplier_str;
+        }
+
+        public struct BiomeDump
+        {
+            public string identifier;
+            public string modIdentifier;
+            public string name;
+            public bool isHeightBased;
+            public int lowestPossibleHeight;
+            public string surfaceBlock_identifier;
+            public string groundBlock_identifier;
+            public Il2CppStringArray decorIdentifier;
+            public Il2CppStringArray vegetationIdentifier;
+            public uint vegetationChancePerBlockPercent;
         }
 
         public struct Texture2DProxy
