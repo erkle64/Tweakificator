@@ -36,6 +36,8 @@ namespace Tweakificator
             new ListConverter<Vector3Int>(),
             new ListConverter<string>(),
 
+            new ReferenceArrayConverter<BuildableObjectTemplate.DragMode>(),
+
             new EnumConverter<ItemTemplate.ItemTemplateToggleableModeTypes>(),
             new EnumConverter<BuildableObjectTemplate.BuildableObjectPowerSubType>(),
             new EnumConverter<BuildableObjectTemplate.CustomSnapMode>(),
@@ -84,12 +86,29 @@ namespace Tweakificator
 
         public static object invokeValue(Type type, JToken token)
         {
-            return token.GetType().GetMethod("Value").MakeGenericMethod(type).Invoke(token, new object[] { });
+            //BepInExLoader.log.LogMessage(string.Format("{0} {1} '{2}'", type.FullName, token.GetType().FullName, token.ToString()));
+            var property = token.GetType().GetProperty("Value");
+            if(property != null) return property.GetGetMethod().Invoke(token, new object[] { });
+            var method = token.GetType().GetMethod("Value");
+            if(method != null)
+            {
+                if(method.IsGenericMethod) return method.MakeGenericMethod(type).Invoke(token, new object[] { });
+                return method.Invoke(token, new object[] { });
+            }
+            throw new Exception(string.Format("Failed to get value of token '{0}'", token.ToString()));
         }
 
         public static object invokeValue(Type type, JObject token, string label)
         {
-            return token.GetType().GetMethod("Value").MakeGenericMethod(type).Invoke(token, new object[] { label });
+            var property = token.GetType().GetProperty("Value");
+            if (property != null) return property.GetGetMethod().Invoke(token, new object[] { label });
+            var method = token.GetType().GetMethod("Value");
+            if (method != null)
+            {
+                if (method.IsGenericMethod) return method.MakeGenericMethod(type).Invoke(token, new object[] { label });
+                return method.Invoke(token, new object[] { label });
+            }
+            throw new Exception(string.Format("Failed to get value of token '{0}'", token.ToString()));
         }
 
         public static D gatherDump<D, T>(T template) where D : new()
@@ -654,6 +673,14 @@ namespace Tweakificator
             {
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BuildableObjectDump, BuildableObjectTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
+
+            if (BepInExLoader.patchDataBuildingChanges != null && BepInExLoader.patchDataBuildingChanges.ContainsKey(__instance.identifier))
+            {
+                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching building {0}", __instance.identifier));
+                var changes = BepInExLoader.patchDataBuildingChanges[__instance.identifier] as JObject;
+
+                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+            }
         }
 
         public static void LoadAllBuildableObjectTemplatesInBuild(ref Il2CppReferenceArray<BuildableObjectTemplate> __result)
@@ -880,6 +907,7 @@ namespace Tweakificator
         {
             public string modIdentifier;
             public string identifier;
+            public string name;
             public bool includeInBuild;
             public BuildableObjectTemplate.BuildableObjectType type;
             public BuildableObjectTemplate.SimulationType simulationType;
@@ -1474,6 +1502,30 @@ namespace Tweakificator
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             var source = (Il2CppSystem.Collections.Generic.List<T>)value;
+            writer.WriteStartArray();
+            foreach(var element in source) serializer.Serialize(writer, element);
+            writer.WriteEndArray();
+        }
+    }
+
+    class ReferenceArrayConverter<T> : JsonConverter where T : Il2CppObjectBase
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(Il2CppReferenceArray<T>);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var source = (JArray)JToken.ReadFrom(reader);
+            var target = new Il2CppReferenceArray<T>(source.Count);
+            for(int i = 0; i < source.Count; ++i) target[i] = serializer.Deserialize<T>(new JTokenReader(source[i]));
+            return target;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            var source = (Il2CppReferenceArray<T>)value;
             writer.WriteStartArray();
             foreach(var element in source) serializer.Serialize(writer, element);
             writer.WriteEndArray();
