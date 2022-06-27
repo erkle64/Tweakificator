@@ -16,7 +16,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.5.1";
+            VERSION = "1.5.2";
 
         public static BepInEx.Logging.ManualLogSource log;
 
@@ -25,7 +25,7 @@ namespace Tweakificator
         public static ConfigEntry<bool> verbose;
 
         public static string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        public static string dumpFolder = Path.Combine(assemblyFolder, "Tweakificator");
+        public static string dumpFolder = Path.Combine(assemblyFolder, MODNAME);
         public static string itemsDumpFolder = Path.Combine(dumpFolder, "Items");
         public static string elementsDumpFolder = Path.Combine(dumpFolder, "Elements");
         public static string recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
@@ -85,7 +85,7 @@ namespace Tweakificator
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
             if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
 
-            foreach(var path in Directory.GetFiles(tweaksFolder, "*.json"))
+            foreach (var path in Directory.GetFiles(tweaksFolder, "*.json"))
             {
                 var patch = JObject.Parse(File.ReadAllText(path));
                 if(patchData == null)
@@ -192,10 +192,6 @@ namespace Tweakificator
                 original = AccessTools.Method(typeof(BiomeTemplate), "onLoad");
                 pre = AccessTools.Method(typeof(PluginComponent), "onLoadBiomeTemplate");
                 harmony.Patch(original, prefix: new HarmonyMethod(pre));
-
-                //original = AccessTools.Method(typeof(SolarPanelGO), "nativePollingUpdate");
-                //pre = AccessTools.Method(typeof(PluginComponent), "SolarPanelGO_nativePollingUpdate");
-                //harmony.Patch(original, prefix: new HarmonyMethod(pre));
             }
             catch
             {

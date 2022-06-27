@@ -39,6 +39,7 @@ namespace Tweakificator
             new ReferenceArrayConverter<BuildableObjectTemplate.DragMode>(),
 
             new EnumConverter<ItemTemplate.ItemTemplateToggleableModeTypes>(),
+            new EnumConverter<BuildableObjectTemplate.BuildableObjectType>(),
             new EnumConverter<BuildableObjectTemplate.BuildableObjectPowerSubType>(),
             new EnumConverter<BuildableObjectTemplate.CustomSnapMode>(),
             new EnumConverter<BuildableObjectTemplate.DragBuildType>(),
@@ -391,11 +392,16 @@ namespace Tweakificator
                 else
                 {
                     instance = ScriptableObject.CreateInstance<CraftingRecipe>();
-                    instance.tagHashes = new Il2CppStructArray<ulong>(0);
+                    instance.tags = new Il2CppStringArray(0);
                     instance.input_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
                     instance.output_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput>(0);
                     instance.inputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
                     instance.outputElemental_data = new Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput>(0);
+                    instance.tagHashes = new Il2CppStructArray<ulong>(0);
+                    instance.input = new Il2CppReferenceArray<Il2CppSystem.Collections.Generic.KeyValuePair<ItemTemplate, uint>>(0);
+                    instance.output = new Il2CppReferenceArray<Il2CppSystem.Collections.Generic.KeyValuePair<ItemTemplate, uint>>(0);
+                    instance.input_elemental = new Il2CppReferenceArray<Il2CppSystem.Collections.Generic.KeyValuePair<ElementTemplate, long>>(0);
+                    instance.output_elemental = new Il2CppReferenceArray<Il2CppSystem.Collections.Generic.KeyValuePair<ElementTemplate, long>>(0);
                 }
 
                 instance.identifier = entry.Key;
@@ -461,8 +467,19 @@ namespace Tweakificator
         private static bool hasRun_terrainBlockTemplates = false;
         private static bool hasRun_terrainBlockScratchGroups = false;
         private static bool hasRun_biomeTemplates = false;
+        private static bool hasRun_craftingRecipes = false;
         public static void onItemTemplateManagerInitOnApplicationStart()
         {
+            if (!hasRun_craftingRecipes && ItemTemplateManager.dict_craftingRecipes != null && ItemTemplateManager.dict_craftingRecipes.Count > 0)
+            {
+                hasRun_craftingRecipes = true;
+
+                foreach(var entry in ItemTemplateManager.dict_craftingRecipes)
+                {
+                    if (entry.Value.tags.Contains("character")) checkForRecipeCycles(entry.Value);
+                }
+            }
+
             if (!hasRun_researchTemplates && ItemTemplateManager.dict_researchTemplates != null && ItemTemplateManager.dict_researchTemplates.Count > 0)
             {
                 hasRun_researchTemplates = true;
@@ -767,13 +784,69 @@ namespace Tweakificator
             }
         }
 
-        //public static void SolarPanelGO_nativePollingUpdate(SolarPanelGO __instance)
-        //{
-        //    if(__instance.relatedEntityId == 1729382256910270466L && __instance.queryData.totalOutputPerSecond_fpm > 0)
-        //    {
-        //        File.AppendAllText(Path.Combine(BepInExLoader.dumpFolder, "solar.csv"), string.Format("{0}, {1}, {2}\r\n", CubeFactory.DayNightCycle.DayNightCycle.getDayPercentageFloat(), GameRoot.getSunAngleFPM() / 10000.0f, __instance.queryData.totalOutputPerSecond_fpm / 10000.0f));
-        //    }
-        //}
+        private static System.Collections.Generic.IEnumerable<CraftingRecipe> getRecipesForItem(string identifier)
+        {
+            foreach(var recipe in ItemTemplateManager.dict_craftingRecipesByTag[GameRoot.generateStringHash64("character")])
+            {
+                bool found = false;
+                foreach(var output in recipe.output_data)
+                {
+                    if(output.identifier == identifier)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if(found)
+                {
+                    yield return recipe;
+                }
+            }
+        }
+
+        private static System.Collections.Generic.IEnumerable<CraftingRecipe> getCharacterSubRecipes(CraftingRecipe recipe)
+        {
+            return recipe.input_data.SelectMany(input => getRecipesForItem(input.identifier));//.Where(subRecipe => subRecipe != null && subRecipe.tags.Contains("character"));
+        }
+
+        private class RecipeNode
+        {
+            public CraftingRecipe recipe;
+            public RecipeNode previous;
+
+            public RecipeNode(CraftingRecipe recipe, RecipeNode previous)
+            {
+                this.recipe = recipe;
+                this.previous = previous;
+            }
+        }
+
+        private static void checkForRecipeCycles(CraftingRecipe rootRecipe)
+        {
+            var recipeQueue = new System.Collections.Generic.Queue<RecipeNode>();
+            recipeQueue.Enqueue(new RecipeNode(rootRecipe, null));
+            while(recipeQueue.Count > 0)
+            {
+                var recipePath = recipeQueue.Dequeue();
+                foreach (var subRecipe in getCharacterSubRecipes(recipePath.recipe))
+                {
+                    for (var node = recipePath; node != null; node = node.previous)
+                    {
+                        if(node.recipe == subRecipe)
+                        {
+                            var nodeNames = new System.Collections.Generic.List<string>();
+                            nodeNames.Add(subRecipe.identifier);
+                            for (var mnode = recipePath; mnode != node; mnode = mnode.previous) nodeNames.Add(mnode.recipe.identifier);
+                            nodeNames.Add(node.recipe.identifier);
+                            log.LogError("Cyclic recipe detected! This will crash!");
+                            log.LogError(string.Join(" ← ", nodeNames));
+                            return;
+                        }
+                    }
+                    recipeQueue.Enqueue(new RecipeNode(subRecipe, recipePath));
+                }
+            }
+        }
 
 #pragma warning disable CS0649
         private struct ItemDump
@@ -846,6 +919,7 @@ namespace Tweakificator
             public bool showBurnabelFuelCostInTooltip;
             public string recipe_efficiency_str;
             public int recipePriority;
+            public string _infoBox;
         }
 
         private struct TerrainBlockDump
