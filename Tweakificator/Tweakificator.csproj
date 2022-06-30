@@ -136,12 +136,25 @@
     <Compile Include="Tweakificator\PluginComponent.cs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="ILRepack">
+      <Version>2.0.18</Version>
+    </PackageReference>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
+      <Version>2.0.18.2</Version>
+    </PackageReference>
+    <PackageReference Include="ncalc">
+      <Version>1.3.8</Version>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="PanoramicData.NCalcExtensions">
+      <Version>1.19.9</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y $(TargetPath) G:\foundry\BepInEx\plugins\</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -5,9 +5,11 @@ using UnityEngine;
 using Newtonsoft.Json;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using PanoramicData.NCalcExtensions;
 using System.Reflection;
 using UnhollowerRuntimeLib;
 using HarmonyLib;
+using System.Text.RegularExpressions;
 
 namespace Tweakificator
 {
@@ -65,7 +67,10 @@ namespace Tweakificator
 
             new Texture2DProxyConverter(),
 
-            new SpriteConverter()
+            new SpriteConverter(),
+
+            new StringConverter(),
+            new NumericConverter()
         };
 
         private static System.Collections.Generic.Dictionary<int, int> iconSizes = new System.Collections.Generic.Dictionary<int, int>() {
@@ -255,13 +260,25 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ItemDump, ItemTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataItemChanges != null && BepInExLoader.patchDataItemChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataItemChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching item {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataItemChanges[__instance.identifier] as JObject;
-                if (changes != null)
+                foreach (var entry in BepInExLoader.patchDataItemChanges)
                 {
-                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if(__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching item {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching item {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
                 }
             }
         }
@@ -326,13 +343,25 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ElementDump, ElementTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataElementChanges != null && BepInExLoader.patchDataElementChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataElementChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching element {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataElementChanges[__instance.identifier] as JObject;
-                if (changes != null)
+                foreach (var entry in BepInExLoader.patchDataElementChanges)
                 {
-                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching element {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching element {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
                 }
             }
         }
@@ -345,12 +374,26 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<RecipeDump, CraftingRecipe>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataRecipeChanges != null && BepInExLoader.patchDataRecipeChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataRecipeChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching recipe {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataRecipeChanges[__instance.identifier] as JObject;
-
-                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                foreach (var entry in BepInExLoader.patchDataRecipeChanges)
+                {
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching recipe {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching recipe {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
+                }
             }
         }
 
@@ -422,43 +465,56 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<TerrainBlockDump, TerrainBlockType>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataTerrainChanges != null && BepInExLoader.patchDataTerrainChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataTerrainChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching terrain block {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataTerrainChanges[__instance.identifier] as JObject;
-                if (changes != null)
+                foreach (var entry in BepInExLoader.patchDataTerrainChanges)
                 {
-                    if (changes.ContainsKey("texture_abledo"))
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
                     {
-                        __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].Value<string>());
-                        changes.Remove("texture_abledo");
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching terrain block {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching terrain block {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            changes = changes.DeepClone() as JObject;
+                            if (changes.ContainsKey("texture_abledo"))
+                            {
+                                __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].Value<string>());
+                                changes.Remove("texture_abledo");
+                            }
+                            if (changes.ContainsKey("texture_side_abledo"))
+                            {
+                                __instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_side_abledo"].Value<string>());
+                                changes.Remove("texture_side_abledo");
+                            }
+                            if (changes.ContainsKey("texture_bottom_abledo"))
+                            {
+                                __instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_abledo"].Value<string>());
+                                changes.Remove("texture_bottom_abledo");
+                            }
+                            if (changes.ContainsKey("texture_height"))
+                            {
+                                __instance.texture_height = (Texture2D)ResourceExt.FindTexture(changes["texture_height"].Value<string>());
+                                changes.Remove("texture_height");
+                            }
+                            if (changes.ContainsKey("texture_side_height"))
+                            {
+                                __instance.texture_side_height = (Texture2D)ResourceExt.FindTexture(changes["texture_side_height"].Value<string>());
+                                changes.Remove("texture_side_height");
+                            }
+                            if (changes.ContainsKey("texture_side_mask"))
+                            {
+                                __instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask"].Value<string>());
+                                changes.Remove("texture_side_mask");
+                            }
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
                     }
-                    if (changes.ContainsKey("texture_side_abledo"))
-                    {
-                        __instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_side_abledo"].Value<string>());
-                        changes.Remove("texture_side_abledo");
-                    }
-                    if (changes.ContainsKey("texture_bottom_abledo"))
-                    {
-                        __instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_abledo"].Value<string>());
-                        changes.Remove("texture_bottom_abledo");
-                    }
-                    if (changes.ContainsKey("texture_height"))
-                    {
-                        __instance.texture_height = (Texture2D)ResourceExt.FindTexture(changes["texture_height"].Value<string>());
-                        changes.Remove("texture_height");
-                    }
-                    if (changes.ContainsKey("texture_side_height"))
-                    {
-                        __instance.texture_side_height = (Texture2D)ResourceExt.FindTexture(changes["texture_side_height"].Value<string>());
-                        changes.Remove("texture_side_height");
-                    }
-                    if (changes.ContainsKey("texture_side_mask"))
-                    {
-                        __instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask"].Value<string>());
-                        changes.Remove("texture_side_mask");
-                    }
-                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
                 }
             }
         }
@@ -691,12 +747,26 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BuildableObjectDump, BuildableObjectTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataBuildingChanges != null && BepInExLoader.patchDataBuildingChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataBuildingChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching building {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataBuildingChanges[__instance.identifier] as JObject;
-
-                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                foreach (var entry in BepInExLoader.patchDataBuildingChanges)
+                {
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching building {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching building {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
+                }
             }
         }
 
@@ -759,11 +829,26 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ResearchDump, ResearchTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataResearchChanges != null && BepInExLoader.patchDataResearchChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataResearchChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching research {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataResearchChanges[__instance.identifier] as JObject;
-                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                foreach (var entry in BepInExLoader.patchDataResearchChanges)
+                {
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching research {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching research {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
+                }
             }
         }
 
@@ -776,11 +861,26 @@ namespace Tweakificator
                 File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BiomeDump, BiomeTemplate>(__instance), Formatting.Indented, serializerSettings));
             }
 
-            if (BepInExLoader.patchDataBiomeChanges != null && BepInExLoader.patchDataBiomeChanges.ContainsKey(__instance.identifier))
+            if (BepInExLoader.patchDataBiomeChanges != null)
             {
-                if (BepInExLoader.verbose.Value) log.LogInfo(string.Format("Patching biome {0}", __instance.identifier));
-                var changes = BepInExLoader.patchDataResearchChanges[__instance.identifier] as JObject;
-                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                foreach (var entry in BepInExLoader.patchDataBiomeChanges)
+                {
+                    if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                    {
+                        if (BepInExLoader.verbose.Value)
+                        {
+                            if (__instance.identifier != entry.Key)
+                                log.LogInfo(string.Format("Patching biome {0}. Matched '{1}'", __instance.identifier, entry.Key));
+                            else
+                                log.LogInfo(string.Format("Patching biome {0}", __instance.identifier));
+                        }
+                        var changes = entry.Value as JObject;
+                        if (changes != null)
+                        {
+                            JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
+                        }
+                    }
+                }
             }
         }
 
@@ -846,6 +946,11 @@ namespace Tweakificator
                     recipeQueue.Enqueue(new RecipeNode(subRecipe, recipePath));
                 }
             }
+        }
+
+        internal static Regex buildPatternRegex(string pattern)
+        {
+            return new Regex("^"+Regex.Escape(pattern).Replace(@"\*", @"(?:.*?)")+"$");
         }
 
 #pragma warning disable CS0649
@@ -1555,6 +1660,95 @@ namespace Tweakificator
             writer.WriteStartArray();
             foreach(var element in source) writer.WriteValue(element);
             writer.WriteEndArray();
+        }
+    }
+
+    class StringConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            return objectType == typeof(string);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var source = JToken.ReadFrom(reader).ToString();
+            //var source = serializer.Deserialize<string>(reader);
+            if (source.StartsWith("{") && source.EndsWith("}"))
+            {
+                try
+                {
+                    var e = new NCalc.Expression(source.Substring(1, source.Length - 2));
+                    e.EvaluateFunction += NCalcExtensions.Extend;
+                    e.Parameters["value"] = (existingValue as string) ?? "";
+                    var result = e.Evaluate() ?? "";
+                    return result.ToString();
+                }
+                catch (Exception e)
+                {
+                    BepInExLoader.log.LogError(e);
+                    return source;
+                }
+            }
+
+            return source;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            writer.WriteValue(value.ToString());
+        }
+    }
+
+    class NumericConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            switch (Type.GetTypeCode(objectType))
+            {
+                case TypeCode.Byte:
+                case TypeCode.SByte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.Decimal:
+                case TypeCode.Double:
+                case TypeCode.Single:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var source = JToken.ReadFrom(reader).ToString();
+            if (source.StartsWith("{") && source.EndsWith("}"))
+            {
+                try
+                {
+                    var e = new NCalc.Expression(source.Substring(1, source.Length - 2));
+                    e.EvaluateFunction += NCalcExtensions.Extend;
+                    e.Parameters["value"] = existingValue ?? 0;
+                    var result = e.Evaluate() ?? 0;
+                    return Convert.ChangeType(result, objectType);
+                }
+                catch (Exception e)
+                {
+                    BepInExLoader.log.LogError(e);
+                    return source;
+                }
+            }
+
+            return Convert.ChangeType(source, objectType);
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            writer.WriteValue(value);
         }
     }
 

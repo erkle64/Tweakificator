@@ -16,7 +16,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.5.2";
+            VERSION = "1.6.0";
 
         public static BepInEx.Logging.ManualLogSource log;
 
