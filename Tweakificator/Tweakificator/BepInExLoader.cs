@@ -16,7 +16,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = "com." + AUTHOR + "." + MODNAME,
-            VERSION = "1.6.0";
+            VERSION = "1.7.0";
 
         public static BepInEx.Logging.ManualLogSource log;
 
@@ -173,7 +173,7 @@ namespace Tweakificator
                 pre = AccessTools.Method(typeof(PluginComponent), "onLoadTerrainBlockType");
                 harmony.Patch(original, prefix: new HarmonyMethod(pre));
 
-                original = AccessTools.Method(typeof(ItemTemplateManager._InitOnApplicationStart_d__31), "MoveNext");
+                original = AccessTools.Method(typeof(ItemTemplateManager._InitOnApplicationStart_d__34), "MoveNext");
                 pre = AccessTools.Method(typeof(PluginComponent), "onItemTemplateManagerInitOnApplicationStart");
                 harmony.Patch(original, prefix: new HarmonyMethod(pre));
 

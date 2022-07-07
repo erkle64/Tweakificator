@@ -577,7 +577,6 @@ namespace Tweakificator
                         instance.list_blastFurnaceModes_str = new Il2CppSystem.Collections.Generic.List<string>(0);
                         instance.list_craftingUnlocks_str = new Il2CppSystem.Collections.Generic.List<string>(0);
                         instance.list_researchDependencies_str = new Il2CppSystem.Collections.Generic.List<string>(0);
-                        instance.list_tutorialMessageIdentifierUnlocks = new Il2CppSystem.Collections.Generic.List<string>(0);
                         instance.input_data = new Il2CppReferenceArray<ResearchTemplate.ResearchTemplateItemInput>(0);
                     }
 
