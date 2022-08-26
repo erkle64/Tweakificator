@@ -615,7 +615,9 @@ namespace Tweakificator
                         terrainBlockIdentifier = "_base_concrete";
                     }
 
-                    var template = ItemTemplateManager.getTerrainBlockScratchGroupByTerrainBlockType(terrainBlockIdentifier);
+                    var tbt = ItemTemplateManager.getTerrainBlockTemplate(TerrainBlockType.generateStringHash(terrainBlockIdentifier));
+                    Debug.Assert(tbt != null);
+                    var template = ItemTemplateManager.getTerrainBlockScratchGroupByTerrainBlockType(tbt);
 
                     var instance = Instantiate<TerrainBlockScratchGroup>(template);
                     instance.terrainBlockType_identifier = entry.Key;
@@ -1318,7 +1320,6 @@ namespace Tweakificator
             public Il2CppSystem.Collections.Generic.List<string> list_researchDependencies_str;
             public Il2CppSystem.Collections.Generic.List<string> list_craftingUnlocks_str;
             public Il2CppSystem.Collections.Generic.List<string> list_blastFurnaceModes_str;
-            public Il2CppSystem.Collections.Generic.List<string> list_tutorialMessageIdentifierUnlocks;
             public string mapScanner_ore_identifier;
             public string mapScanner_reservoir_identifier;
             public int inventorySize_additionalInventorySlots;
