@@ -14,12 +14,12 @@
         Internalize="true"
         InputAssemblies="@(InputAssemblies)"
         TargetKind="Dll"
-        OutputFile="$(OutputPath)\$(AssemblyName).dll"
-		LibraryPath="$(SolutionDir)\Libraries\"
+        OutputFile="$(OutputPath)\$(AssemblyName)_repacked.dll"
+		LibraryPath="$(OutputPath)"
     />
 
     </Target>
 	<Target Name="CopyToInstall" AfterTargets="ILRepack">
-		<Exec Command="copy /Y $(TargetPath) G:\foundry\BepInEx\plugins\"/>
+		<Exec Command="copy /Y $(OutputPath)\$(AssemblyName)_repacked.dll $(TargetModDir)\$(AssemblyName).dll"/>
 	</Target>
 </Project>

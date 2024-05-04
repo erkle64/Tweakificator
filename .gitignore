@@ -1,8 +1,11 @@
+/Packages
+/Tweakificator/obj
+/Tweakificator/bin
+/Libraries
+.vs
+/MigrationBackup
+/Libraries
+/publicized_assemblies
+/Licenses
+/AssemblyPublicizer.exe
 
-packages/*
-Tweakificator/.vs/*
-Tweakificator/obj/*
-Tweakificator/bin/*
-Libraries/*.dll
-.vs/*
-MigrationBackup/*

@@ -1,160 +1,61 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="$(SolutionDir)Foundry.props" Condition="Exists('$(SolutionDir)Foundry.props')" />
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{26CE5120-15CB-4871-B54D-D6013B889350}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Tweakificator</RootNamespace>
-    <AssemblyName>Tweakificator</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <TargetFramework>net48</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.31">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="PanoramicData.NCalcExtensions" Version="1.19.16" />
+    <PackageReference Include="System.Text.Json" Version="8.0.3" />
+  </ItemGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>..\Libraries\0Harmony.dll</HintPath>
-    </Reference>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>..\Libraries\Assembly-CSharp.dll</HintPath>
-    </Reference>
-    <Reference Include="BepInEx.Core">
-      <HintPath>..\Libraries\BepInEx.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="BepInEx.IL2CPP">
-      <HintPath>..\Libraries\BepInEx.IL2CPP.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2Cppmscorlib">
-      <HintPath>..\Libraries\Il2Cppmscorlib.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2CppSystem">
-      <HintPath>..\Libraries\Il2CppSystem.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2CppSystem.Core">
-      <HintPath>..\Libraries\Il2CppSystem.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="Il2CppSystem.Xml">
-      <HintPath>..\Libraries\Il2CppSystem.Xml.dll</HintPath>
+      <HintPath>$(FoundryAssembliesPath)0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Main">
-      <HintPath>..\Libraries\Main.dll</HintPath>
+      <HintPath>$(FoundryAssembliesPath)Main.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Cecil">
-      <HintPath>..\Libraries\Mono.Cecil.dll</HintPath>
+    <Reference Include="Channel3">
+      <HintPath>$(FoundryAssembliesPath)Channel3.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Cecil.Mdb">
-      <HintPath>..\Libraries\Mono.Cecil.Mdb.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Cecil.Pdb">
-      <HintPath>..\Libraries\Mono.Cecil.Pdb.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Cecil.Rocks">
-      <HintPath>..\Libraries\Mono.Cecil.Rocks.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-    <Reference Include="UnhollowerBaseLib">
-      <HintPath>..\Libraries\UnhollowerBaseLib.dll</HintPath>
-    </Reference>
-    <Reference Include="UnhollowerRuntimeLib">
-      <HintPath>..\Libraries\UnhollowerRuntimeLib.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>..\Libraries\Unity.TextMeshPro.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>..\Libraries\UnityEngine.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.AssetBundleModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\Libraries\UnityEngine.AssetBundleModule.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.AudioModule">
-      <HintPath>..\Libraries\UnityEngine.AudioModule.dll</HintPath>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>G:\SteamLibrary\steamapps\common\FOUNDRY\foundry_Data\Managed\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>..\Libraries\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(FoundryAssembliesPath)UnityEngine.CoreModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>..\Libraries\UnityEngine.ImageConversionModule.dll</HintPath>
+      <HintPath>$(FoundryAssembliesPath)UnityEngine.ImageConversionModule.dll</HintPath>
     </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>..\Libraries\UnityEngine.IMGUIModule.dll</HintPath>
+    <Reference Include="mscorlib">
+      <HintPath>$(FoundryAssembliesPath)mscorlib.dll</HintPath>
     </Reference>
-    <Reference Include="UnityEngine.InputLegacyModule">
-      <HintPath>..\Libraries\UnityEngine.InputLegacyModule.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.InputModule">
-      <HintPath>..\Libraries\UnityEngine.InputModule.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>..\Libraries\UnityEngine.TextRenderingModule.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>..\Libraries\UnityEngine.UI.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEngine.UIModule">
-      <HintPath>..\Libraries\UnityEngine.UIModule.dll</HintPath>
+    <Reference Include="Unfoundry">
+      <HintPath>$(FoundryModsPath)A_Unfoundry\Unfoundry.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Tweakificator\BepInExLoader.cs" />
-    <Compile Include="Tweakificator\PluginComponent.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="ILRepack">
-      <Version>2.0.18</Version>
-    </PackageReference>
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
-      <Version>2.0.18.2</Version>
-    </PackageReference>
-    <PackageReference Include="ncalc">
-      <Version>1.3.8</Version>
-    </PackageReference>
-    <PackageReference Include="Newtonsoft.Json">
-      <Version>13.0.1</Version>
-    </PackageReference>
-    <PackageReference Include="PanoramicData.NCalcExtensions">
-      <Version>1.19.9</Version>
-    </PackageReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if not exist &quot;$(TargetModDir)&quot; mkdir &quot;$(TargetModDir)&quot;" />
+    <Exec Command="copy /Y &quot;$(SolutionDir)Mod\*.*&quot; &quot;$(TargetModPath)&quot;" />
+    <Exec Command="copy /Y &quot;$(TargetPath)&quot; &quot;$(TargetModPath)&quot;" />
+  </Target>
+
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <StartAction>Program</StartAction>
+    <StartProgram>$(FoundryInstallPath)Foundry.exe</StartProgram>
+    <StartArguments>
+    </StartArguments>
+    <StartWorkingDirectory>$(FoundryInstallPath)</StartWorkingDirectory>
   </PropertyGroup>
+
 </Project>
+
