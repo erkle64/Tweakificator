@@ -1,0 +1,9 @@
+{
+  "identifier": "erkle64.Tweakificator",
+  "displayName": "Tweakificator",
+  "assetBundles": [ ],
+  "assemblies": [
+    "Tweakificator.dll"
+  ]
+}
+

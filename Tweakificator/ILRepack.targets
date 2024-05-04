@@ -4,9 +4,7 @@
 
     <ItemGroup>
         <InputAssemblies Include="$(OutputPath)\$(AssemblyName).dll" />
-        <InputAssemblies Include="$(OutputPath)\NCalc.dll" />
-        <InputAssemblies Include="$(OutputPath)\NewtonSoft.Json.dll" />
-        <InputAssemblies Include="$(OutputPath)\PanoramicData.NCalcExtensions.dll" />
+        <InputAssemblies Include="$(OutputPath)\TinyJSON.dll" />
     </ItemGroup>
 
     <ILRepack

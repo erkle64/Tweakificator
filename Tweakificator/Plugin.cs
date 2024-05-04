@@ -1,17 +1,17 @@
 ﻿using C3;
 using C3.ModKit;
 using HarmonyLib;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using PanoramicData.NCalcExtensions;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Unfoundry;
 using UnityEngine;
-using System.Text.Json.Nodes;
+using TinyJSON;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System;
+using UnityEngine.Serialization;
 
 namespace Tweakificator
 {
@@ -25,8 +25,6 @@ namespace Tweakificator
             VERSION = "2.0.0";
 
         public static LogSource log;
-
-        private static JsonSerializerOptions serializerSettings;
 
         public static TypedConfigEntry<bool> forceDump;
         public static TypedConfigEntry<bool> dumpIcons;
@@ -48,21 +46,21 @@ namespace Tweakificator
 
         public static bool firstRun = false;
 
-        public static dynamic patchData = null;
-        public static dynamic patchDataItemChanges = null;
-        public static dynamic patchDataElementChanges = null;
-        public static dynamic patchDataRecipeChanges = null;
-        public static dynamic patchDataTerrainChanges = null;
-        public static dynamic patchDataBuildingChanges = null;
-        public static dynamic patchDataResearchChanges = null;
-        public static dynamic patchDataBiomeChanges = null;
-        public static dynamic patchDataItemAdditions = null;
-        public static dynamic patchDataElementAdditions = null;
-        public static dynamic patchDataRecipeAdditions = null;
-        public static dynamic patchDataTerrainAdditions = null;
-        public static dynamic patchDataBuildingAdditions = null;
-        public static dynamic patchDataResearchAdditions = null;
-        public static dynamic patchDataBiomeAdditions = null;
+        public static Variant patchData = null;
+        public static Variant patchDataItemChanges = null;
+        public static Variant patchDataElementChanges = null;
+        public static Variant patchDataRecipeChanges = null;
+        public static Variant patchDataTerrainChanges = null;
+        public static Variant patchDataBuildingChanges = null;
+        public static Variant patchDataResearchChanges = null;
+        public static Variant patchDataBiomeChanges = null;
+        public static Variant patchDataItemAdditions = null;
+        public static Variant patchDataElementAdditions = null;
+        public static Variant patchDataRecipeAdditions = null;
+        public static Variant patchDataTerrainAdditions = null;
+        public static Variant patchDataBuildingAdditions = null;
+        public static Variant patchDataResearchAdditions = null;
+        public static Variant patchDataBiomeAdditions = null;
 
         public Plugin()
         {
@@ -81,68 +79,6 @@ namespace Tweakificator
             tweaksFolder = Path.Combine(assemblyFolder, "..\\tweaks");
             iconsFolder = Path.Combine(tweaksFolder, "icons");
             texturesFolder = Path.Combine(tweaksFolder, "textures");
-
-            serializerSettings = new JsonSerializerOptions();
-            //{
-            //    Converters = 
-            //    {
-            //        new ObjectConverter<ItemTemplate.ItemMode>("identifier", "name", "icon"),
-            //        new ObjectConverter<CraftingRecipe.CraftingRecipeItemInput>("identifier", "amount"),
-            //        new ObjectConverter<CraftingRecipe.CraftingRecipeElementalInput>("identifier", "amount_str"),
-            //        new ObjectConverter<Vector3>("x", "y", "z"),
-            //        new ObjectConverter<Vector3Int>("x", "y", "z"),
-            //        new ObjectConverter<Color>("r", "g", "b", "a"),
-            //        new ObjectConverter<Quaternion>("x", "y", "z", "w"),
-            //        new ObjectConverter<BuildableObjectTemplate.DragMode>("name", "isDefault"),
-            //        new ObjectConverter<BuildableObjectTemplate.FluidBoxData.FluidBoxConnectionData>("localOffset", "connectorFlags"),
-            //        new ObjectConverter<BuildableObjectTemplate.ModularBuildingConnectionNodeData>("bot_identifier", "positionData", "botId"),
-            //        new ObjectConverter<BuildableObjectTemplate.OffsetAndOrientationData>("offset", "orientation"),
-            //        new ObjectConverter<ResearchTemplate.ResearchTemplateItemInput>("identifier", "amount"),
-
-            //        new ArrayMapConverter<CraftingRecipe.CraftingRecipeItemInput>("identifier", "amount"),
-            //        new ArrayMapConverter<CraftingRecipe.CraftingRecipeElementalInput>("identifier", "amount_str"),
-            //        new ArrayMapConverter<ItemTemplate.ItemMode>("identifier", "name", "icon"),
-            //        new ArrayMapConverter<ResearchTemplate.ResearchTemplateItemInput>("identifier", "amount"),
-
-            //        new ListConverter<Vector3Int>(),
-            //        new ListConverter<string>(),
-
-            //        new ReferenceArrayConverter<BuildableObjectTemplate.DragMode>(),
-            //        new ReferenceArrayConverter<BuildableObjectTemplate.ModularBuildingConnectionNodeData>(),
-
-            //        new EnumConverter<ItemTemplate.ItemTemplateToggleableModeTypes>(),
-            //        new EnumConverter<BuildableObjectTemplate.BuildableObjectType>(),
-            //        new EnumConverter<BuildableObjectTemplate.BuildableObjectPowerSubType>(),
-            //        new EnumConverter<BuildableObjectTemplate.CustomSnapMode>(),
-            //        new EnumConverter<BuildableObjectTemplate.DragBuildType>(),
-            //        new EnumConverter<BuildableObjectTemplate.FoundationConnectorType>(),
-            //        new EnumConverter<BuildableObjectTemplate.ModularBuildingType>(),
-            //        new EnumConverter<BuildableObjectTemplate.ProducerRecipeType>(),
-            //        //new EnumConverter<BuildableObjectTemplate.ScreenPanelType>(),
-            //        new EnumConverter<BuildableObjectTemplate.SimulationType>(),
-
-            //        new EnumFlagsConverter<ItemTemplate.ItemTemplateFlags>(),
-            //        new EnumFlagsConverter<ItemTemplate.HandheldSubType>(),
-            //        new EnumFlagsConverter<ElementTemplate.ElementTemplateFlags>(),
-            //        new EnumFlagsConverter<TerrainBlockType.DecorFlags>(),
-            //        new EnumFlagsConverter<TerrainBlockType.OreSpawnFlags>(),
-            //        new EnumFlagsConverter<TerrainBlockType.TerrainTypeFlags>(),
-            //        new EnumFlagsConverter<BuildableObjectTemplate.PipeConnectorFlags>(),
-            //        new EnumFlagsConverter<BuildableObjectTemplate.PoleGridTypes>(),
-            //        new EnumFlagsConverter<ResearchTemplate.ResearchTemplateFlags>(),
-
-            //        new EnumFlagsConverterByte<BuildableObjectTemplate.SimulationSleepFlags>(),
-
-            //        new StringArrayConverter(),
-
-            //        new Texture2DProxyConverter(),
-
-            //        new SpriteConverter(),
-
-            //        new StringConverter(),
-            //        new NumericConverter()
-            //    }
-            //};
 
             new Config(GUID)
                 .Group("Dump")
@@ -175,7 +111,7 @@ namespace Tweakificator
 
             foreach (var path in Directory.GetFiles(tweaksFolder, "*.json"))
             {
-                var patch = JObject.Parse(File.ReadAllText(path));
+                var patch = JSON.Load(File.ReadAllText(path));
                 if (patchData == null)
                 {
                     log.LogFormat("Loading patch {0}", Path.GetFileName(path));
@@ -193,8 +129,6 @@ namespace Tweakificator
         {
             log.Log($"Loading {MODNAME}");
         }
-
-        //internal static readonly JsonConverter[] jsonConverters = ;
 
         [HarmonyPatch]
         public static class Patch
@@ -280,27 +214,6 @@ namespace Tweakificator
             //                }
             //            }
 
-            [HarmonyPatch(typeof(AssetManager), nameof(AssetManager.registerAsset))]
-            [HarmonyPrefix]
-            public static void registerAsset(Object asset, bool enableAssetOverwriting)
-            {
-                log.LogFormat("registerAsset: {0} {1}", asset.name, enableAssetOverwriting);
-            }
-
-            [HarmonyPatch(typeof(AssetManager), "loadAssetsOfType")]
-            [HarmonyPrefix]
-            public static void loadAssetsOfType(System.Type type)
-            {
-                log.LogFormat("loadAssetsOfType: {0}", type.FullName);
-            }
-
-            [HarmonyPatch(typeof(AssetManager), "getOrCreateAssetCollectionForType")]
-            [HarmonyPrefix]
-            public static void getOrCreateAssetCollectionForType(System.Type type)
-            {
-                log.LogFormat("getOrCreateAssetCollectionForType: {0}", type.FullName);
-            }
-
             [HarmonyPatch(typeof(ItemTemplate), nameof(ItemTemplate.onLoad))]
             [HarmonyPrefix]
             public static void onLoadItemTemplate(ItemTemplate __instance)
@@ -311,25 +224,262 @@ namespace Tweakificator
                 var path = Path.Combine(itemsDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
                 {
-                    File.WriteAllText(path, JsonSerializer.Serialize(gatherDump<ItemDump, ItemTemplate>(__instance), serializerSettings));
+                    File.WriteAllText(path, JSON.Dump(gatherDump<ItemDump, ItemTemplate>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
                 }
 
-                if (patchDataItemChanges != null)
+                if (patchDataItemChanges != null && patchDataItemChanges is ProxyObject changeMap)
                 {
-                    foreach (var entry in patchDataItemChanges)
+                    foreach (var entry in changeMap)
                     {
                         if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
                         {
-                            if (verbose.Get())
+                            if (entry.Value is ProxyObject changes)
                             {
-                                if (__instance.identifier != entry.Key)
-                                    log.Log(string.Format("Patching item {0}. Matched '{1}'", __instance.identifier, entry.Key));
-                                else
-                                    log.Log(string.Format("Patching item {0}", __instance.identifier));
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching item {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching item {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
                             }
-                            if (entry.Value is JsonObject changes)
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(ElementTemplate), nameof(ElementTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadElementTemplate(ElementTemplate __instance)
+            {
+                log.LogFormat("onLoadElementTemplate: {0}", __instance.name);
+
+                var path = Path.Combine(elementsDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<ElementDump, ElementTemplate>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataElementChanges != null && patchDataElementChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
                             {
-                                __instance = JsonSerializer.Deserialize<ItemTemplate>(changes.ToString(), serializerSettings);
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching element {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching element {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
+                            }
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(CraftingRecipe), nameof(CraftingRecipe.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadRecipe(CraftingRecipe __instance)
+            {
+                log.LogFormat("onLoadRecipe: {0}", __instance.name);
+
+                var path = Path.Combine(recipesDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<RecipeDump, CraftingRecipe>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataRecipeChanges != null && patchDataRecipeChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
+                            {
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching recipe {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching recipe {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
+                            }
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(BuildableObjectTemplate), nameof(BuildableObjectTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
+            {
+                log.LogFormat("onLoadBuildableObjectTemplate: {0}", __instance.name);
+
+                var path = Path.Combine(buildingsDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<BuildableObjectDump, BuildableObjectTemplate>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataBuildingChanges != null && patchDataRecipeChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
+                            {
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching building {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching building {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
+                            }
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(ResearchTemplate), nameof(ResearchTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadResearchTemplate(ResearchTemplate __instance)
+            {
+                log.LogFormat("onLoadResearchTemplate: {0}", __instance.name);
+
+                var path = Path.Combine(researchDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<ResearchDump, ResearchTemplate>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataResearchChanges != null && patchDataRecipeChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
+                            {
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching research {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching research {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
+                            }
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(BiomeTemplate), nameof(BiomeTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadBiomeTemplate(BiomeTemplate __instance)
+            {
+                log.LogFormat("onLoadBiomeTemplate: {0}", __instance.name);
+
+                var path = Path.Combine(biomeDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<BiomeDump, BiomeTemplate>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataBiomeChanges != null && patchDataRecipeChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
+                            {
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching biome {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching biome {0}", __instance.identifier);
+                                }
+                                changes.Populate(ref __instance);
+                            }
+                        }
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(TerrainBlockType), nameof(TerrainBlockType.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadTerrainBlockType(TerrainBlockType __instance)
+            {
+                log.LogFormat("onLoadTerrainBlockType: {0}", __instance.name);
+
+                var path = Path.Combine(terrainBlocksDumpFolder, __instance.identifier + ".json");
+                if (forceDump.Get() || !File.Exists(path))
+                {
+                    File.WriteAllText(path, JSON.Dump(gatherDump<TerrainBlockDump, TerrainBlockType>(__instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                }
+
+                if (patchDataTerrainChanges != null && patchDataRecipeChanges is ProxyObject changeMap)
+                {
+                    foreach (var entry in changeMap)
+                    {
+                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
+                        {
+                            if (entry.Value is ProxyObject changes)
+                            {
+                                if (verbose.Get())
+                                {
+                                    if (__instance.identifier != entry.Key)
+                                        log.LogFormat("Patching terrain block {0}. Matched '{1}'", __instance.identifier, entry.Key);
+                                    else
+                                        log.LogFormat("Patching terrain block {0}", __instance.identifier);
+                                }
+
+                                if (changes.ContainsKey("texture_abledo"))
+                                {
+                                    __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_bottom_abledo"))
+                                {
+                                    __instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_abledo"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_bottom_metalSmoothHeight"))
+                                {
+                                    __instance.texture_bottom_metalSmoothHeight = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_metalSmoothHeight"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_height"))
+                                {
+                                    __instance.texture_metalHeightSmoothHeight = (Texture2D)ResourceExt.FindTexture(changes["texture_metalHeightSmoothHeight"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_side_abledo"))
+                                {
+                                    __instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_side_abledo"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_side_metalSmoothHeight"))
+                                {
+                                    __instance.texture_side_metalSmoothHeight = (Texture2D)ResourceExt.FindTexture(changes["texture_side_metalSmoothHeight"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_side_mask"))
+                                {
+                                    __instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask"].ToString());
+                                }
+                                if (changes.ContainsKey("texture_side_mask_metalSmoothHeight"))
+                                {
+                                    __instance.texture_side_mask_metalSmoothHeight = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask_metalSmoothHeight"].ToString());
+                                }
+                                changes.Populate(ref __instance);
                             }
                         }
                     }
@@ -361,53 +511,18 @@ namespace Tweakificator
                     }
                 }
             }
+
             [HarmonyPatch(typeof(ItemTemplateManager), nameof(ItemTemplateManager.InitOnApplicationStart))]
             [HarmonyPostfix]
             static void onItemTemplateManagerInitOnApplicationStart(ref IEnumerator __result)
             {
                 log.LogFormat("onItemTemplateManagerInitOnApplicationStart");
-                System.Action prefixAction = () => { log.Log("--> beginning"); };
-                System.Action postfixAction = () => { log.Log("--> ending"); };
-                System.Action<object> preItemAction = (item) => { log.LogFormat($"--> before {item}"); };
-                System.Action<object> postItemAction = (item) => { log.LogFormat($"--> after {item}"); };
                 var myEnumerator = new SimpleEnumerator()
                 {
                     enumerator = __result
                 };
                 __result = myEnumerator.GetEnumerator();
             }
-
-            //            //[HarmonyPatch(typeof(ItemTemplate), nameof(ItemTemplate.onLoad))]
-            //            //[HarmonyPrefix]
-            //            public static void onLoadItemTemplate(ItemTemplate __instance)
-            //            {
-            //                var path = Path.Combine(itemsDumpFolder, __instance.identifier + ".json");
-            //                if (forceDump.Get() || !File.Exists(path))
-            //                {
-            //                    File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ItemDump, ItemTemplate>(__instance), Formatting.Indented, serializerSettings));
-            //                }
-
-            //                if (patchDataItemChanges != null)
-            //                {
-            //                    foreach (var entry in patchDataItemChanges)
-            //                    {
-            //                        if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //                        {
-            //                            if (verbose.Get())
-            //                            {
-            //                                if (__instance.identifier != entry.Key)
-            //                                    log.Log(string.Format("Patching item {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //                                else
-            //                                    log.Log(string.Format("Patching item {0}", __instance.identifier));
-            //                            }
-            //                            if (entry.Value is JObject changes)
-            //                            {
-            //                                JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //                            }
-            //                        }
-            //                    }
-            //                }
-            //            }
 
             //            //[HarmonyPatch(typeof(ItemTemplate), nameof(ItemTemplate.LoadAllItemTemplatesInBuild))]
             //            //[HarmonyPrefix]
@@ -460,68 +575,6 @@ namespace Tweakificator
 
             //                __result = result;
             //            }
-
-            //            //public static void onLoadElementTemplate(ElementTemplate __instance)
-            //            //{
-            //            //    var path = Path.Combine(elementsDumpFolder, __instance.identifier + ".json");
-            //            //    if (forceDump.Get() || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ElementDump, ElementTemplate>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (patchDataElementChanges != null)
-            //            //    {
-            //            //        foreach (var entry in patchDataElementChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (verbose.Get())
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.Log(string.Format("Patching element {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.Log(string.Format("Patching element {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
-            //            //}
-
-            //            //public static void onLoadRecipe(CraftingRecipe __instance)
-            //            //{
-            //            //    var path = Path.Combine(recipesDumpFolder, __instance.identifier + ".json");
-            //            //    if (forceDump.Value || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<RecipeDump, CraftingRecipe>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (patchDataRecipeChanges != null)
-            //            //    {
-            //            //        foreach (var entry in patchDataRecipeChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (verbose.Get())
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.Log(string.Format("Patching recipe {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.Log(string.Format("Patching recipe {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
-            //            //}
 
             //            //public static void LoadAllCraftingRecipesInBuild(ref CraftingRecipe[] __result)
             //            //{
@@ -581,68 +634,6 @@ namespace Tweakificator
             //            //    log.Log(string.Format("Patched {0} recipes and added {1} recipes.", patchDataRecipeChanges != null ? patchDataRecipeChanges.Count : 0, patchDataRecipeAdditions != null ? patchDataRecipeAdditions.Count : 0));
 
             //            //    __result = result;
-            //            //}
-
-            //            //public static void onLoadTerrainBlockType(TerrainBlockType __instance)
-            //            //{
-            //            //    var path = Path.Combine(BepInExLoader.terrainBlocksDumpFolder, __instance.identifier + ".json");
-            //            //    if (BepInExLoader.forceDump.Value || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<TerrainBlockDump, TerrainBlockType>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (BepInExLoader.patchDataTerrainChanges != null)
-            //            //    {
-            //            //        foreach (var entry in BepInExLoader.patchDataTerrainChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (BepInExLoader.verbose.Value)
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.LogInfo(string.Format("Patching terrain block {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.LogInfo(string.Format("Patching terrain block {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    changes = changes.DeepClone() as JObject;
-            //            //                    if (changes.ContainsKey("texture_abledo"))
-            //            //                    {
-            //            //                        __instance.texture_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_abledo"].Value<string>());
-            //            //                        changes.Remove("texture_abledo");
-            //            //                    }
-            //            //                    if (changes.ContainsKey("texture_side_abledo"))
-            //            //                    {
-            //            //                        __instance.texture_side_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_side_abledo"].Value<string>());
-            //            //                        changes.Remove("texture_side_abledo");
-            //            //                    }
-            //            //                    if (changes.ContainsKey("texture_bottom_abledo"))
-            //            //                    {
-            //            //                        __instance.texture_bottom_abledo = (Texture2D)ResourceExt.FindTexture(changes["texture_bottom_abledo"].Value<string>());
-            //            //                        changes.Remove("texture_bottom_abledo");
-            //            //                    }
-            //            //                    if (changes.ContainsKey("texture_height"))
-            //            //                    {
-            //            //                        __instance.texture_height = (Texture2D)ResourceExt.FindTexture(changes["texture_height"].Value<string>());
-            //            //                        changes.Remove("texture_height");
-            //            //                    }
-            //            //                    if (changes.ContainsKey("texture_side_height"))
-            //            //                    {
-            //            //                        __instance.texture_side_height = (Texture2D)ResourceExt.FindTexture(changes["texture_side_height"].Value<string>());
-            //            //                        changes.Remove("texture_side_height");
-            //            //                    }
-            //            //                    if (changes.ContainsKey("texture_side_mask"))
-            //            //                    {
-            //            //                        __instance.texture_side_mask = (Texture2D)ResourceExt.FindTexture(changes["texture_side_mask"].Value<string>());
-            //            //                        changes.Remove("texture_side_mask");
-            //            //                    }
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
             //            //}
 
             //            //private static bool hasRun_researchTemplates = false;
@@ -880,37 +871,6 @@ namespace Tweakificator
             //                //}
             //            }
 
-            //            //public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
-            //            //{
-            //            //    var path = Path.Combine(BepInExLoader.buildingsDumpFolder, __instance.identifier + ".json");
-            //            //    if (BepInExLoader.forceDump.Value || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BuildableObjectDump, BuildableObjectTemplate>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (BepInExLoader.patchDataBuildingChanges != null)
-            //            //    {
-            //            //        foreach (var entry in BepInExLoader.patchDataBuildingChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (BepInExLoader.verbose.Value)
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.LogInfo(string.Format("Patching building {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.LogInfo(string.Format("Patching building {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
-            //            //}
-
             //            //public static void LoadAllBuildableObjectTemplatesInBuild(ref BuildableObjectTemplate[] __result)
             //            //{
             //            //    var result = new BuildableObjectTemplate[__result.Length + BepInExLoader.patchDataBuildingAdditions.Count];
@@ -960,69 +920,6 @@ namespace Tweakificator
             //            //    BepInExLoader.log.LogMessage(string.Format("Patched {0} buildings and added {1} buildings.", BepInExLoader.patchDataBuildingChanges != null ? BepInExLoader.patchDataBuildingChanges.Count : 0, BepInExLoader.patchDataBuildingAdditions != null ? BepInExLoader.patchDataBuildingAdditions.Count : 0));
 
             //            //    __result = result;
-            //            //}
-
-            //            //public static void onLoadResearchTemplate(ResearchTemplate __instance)
-            //            //{
-            //            //    var path = Path.Combine(BepInExLoader.researchDumpFolder, __instance.identifier + ".json");
-            //            //    if (BepInExLoader.forceDump.Value || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<ResearchDump, ResearchTemplate>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (BepInExLoader.patchDataResearchChanges != null)
-            //            //    {
-            //            //        foreach (var entry in BepInExLoader.patchDataResearchChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (BepInExLoader.verbose.Value)
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.LogInfo(string.Format("Patching research {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.LogInfo(string.Format("Patching research {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
-            //            //}
-
-            //            //public static void onLoadBiomeTemplate(BiomeTemplate __instance)
-            //            //{
-            //            //    log.LogWarning("onLoadBiomeTemplate");
-            //            //    var path = Path.Combine(BepInExLoader.biomeDumpFolder, __instance.identifier + ".json");
-            //            //    if (BepInExLoader.forceDump.Value || !File.Exists(path))
-            //            //    {
-            //            //        File.WriteAllText(path, JsonConvert.SerializeObject(gatherDump<BiomeDump, BiomeTemplate>(__instance), Formatting.Indented, serializerSettings));
-            //            //    }
-
-            //            //    if (BepInExLoader.patchDataBiomeChanges != null)
-            //            //    {
-            //            //        foreach (var entry in BepInExLoader.patchDataBiomeChanges)
-            //            //        {
-            //            //            if (buildPatternRegex(entry.Key).IsMatch(__instance.identifier))
-            //            //            {
-            //            //                if (BepInExLoader.verbose.Value)
-            //            //                {
-            //            //                    if (__instance.identifier != entry.Key)
-            //            //                        log.LogInfo(string.Format("Patching biome {0}. Matched '{1}'", __instance.identifier, entry.Key));
-            //            //                    else
-            //            //                        log.LogInfo(string.Format("Patching biome {0}", __instance.identifier));
-            //            //                }
-            //            //                var changes = entry.Value as JObject;
-            //            //                if (changes != null)
-            //            //                {
-            //            //                    JsonConvert.PopulateObject(changes.ToString(), __instance, serializerSettings);
-            //            //                }
-            //            //            }
-            //            //        }
-            //            //    }
             //            //}
 
             //            private static IEnumerable<CraftingRecipe> getRecipesForItem(string identifier)
@@ -1138,12 +1035,30 @@ namespace Tweakificator
             var dump = (System.Object)new D();
             foreach (var field in typeof(D).GetFields())
             {
-                var templateProperty = template.GetType().GetProperty(field.Name);
+                var templateProperty = template.GetType().GetField(field.Name);
                 if (templateProperty != null)
                 {
-                    if (templateProperty.PropertyType == typeof(Texture2D) && field.FieldType == typeof(Texture2DProxy))
+                    if (templateProperty.FieldType == typeof(Texture2D) && field.FieldType == typeof(Texture2DProxy))
                     {
                         field.SetValue(dump, new Texture2DProxy((Texture2D)templateProperty.GetValue(template)));
+                    }
+                    else if (templateProperty.FieldType == typeof(Vector3Int) && field.FieldType == typeof(Vector3IntProxy))
+                    {
+                        field.SetValue(dump, new Vector3IntProxy((Vector3Int)templateProperty.GetValue(template)));
+                    }
+                    else if (templateProperty.FieldType == typeof(List<Vector3Int>) && field.FieldType == typeof(List<Vector3IntProxy>))
+                    {
+                        var templateValues = (List<Vector3Int>)templateProperty.GetValue(template);
+                        var dumpValues = new List<Vector3IntProxy>();
+                        foreach (var value in templateValues) dumpValues.Add(new Vector3IntProxy(value));
+                        field.SetValue(dump, dumpValues);
+                    }
+                    else if (templateProperty.FieldType == typeof(Vector3Int[]) && field.FieldType == typeof(Vector3IntProxy[]))
+                    {
+                        var templateValues = (Vector3Int[])templateProperty.GetValue(template);
+                        var dumpValues = new List<Vector3IntProxy>();
+                        foreach (var value in templateValues) dumpValues.Add(new Vector3IntProxy(value));
+                        field.SetValue(dump, dumpValues.ToArray());
                     }
                     else
                     {
@@ -1193,8 +1108,8 @@ namespace Tweakificator
 #pragma warning disable CS0649
         private struct ItemDump
         {
-            public string identifier;
             public string modIdentifier;
+            public string identifier;
             public string name;
             public bool includeInDemo;
             public bool includeInCreativeMode;
@@ -1209,14 +1124,10 @@ namespace Tweakificator
             public ItemTemplate.GenericItemActionButtons[] genericItemActionButtons;
             public bool skipForRunningIdxGeneration;
             public ItemTemplate.ItemDestroyFlags itemDestroyFlags;
-            public Mesh conveyorMesh;
             public Vector3 meshScale;
             public Quaternion meshRotation;
-            public Material meshMaterial;
             public string buildableObjectIdentifer;
             public ItemTemplate.HandheldSubType handheldSubType;
-            public GameObject handheldObjectPrefab;
-            public GameObject handheldObjectPrefab_droidOnly;
             public bool handheld_miner_shakeRightArmOnUse;
             public string handheld_defaultPowerPoleItemTemplate_str;
             public bool supportsFocusMode;
@@ -1241,7 +1152,6 @@ namespace Tweakificator
             public int railminer_minecartSpeedInSlotsPerTick;
             public string[] railMiner_terrainTargetList_str;
             public bool isMinecartItem;
-            public Material material_minecartMaterial;
             public string trainVehicle_templateIdentifier;
             public string alStarter_alotIdentifier;
             public string alStarter_sellItemTemplateIdentifier;
@@ -1250,371 +1160,556 @@ namespace Tweakificator
             public ItemTemplate.AutoProducerAction[] autoProducerRecipes;
         }
 
-        //private struct ElementDump
-        //{
-        //    public string modIdentifier;
-        //    public string identifier;
-        //    public string name;
-        //    public string icon_identifier;
-        //    public ElementTemplate.ElementTemplateFlags flags;
-        //    public Color pipeContentColor;
-        //    public int pipeContentType;
-        //    public string burnable_fuelValueKJPerL_str;
-        //}
+        private struct ElementDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public string icon_identifier;
+            public ElementTemplate.ElementTemplateFlags flags;
+            public Color pipeContentColor;
+            public int pipeContentType;
+            public string fuel_fuelValueKJPerL_str;
+            public string fuel_residualTemplate_identifier;
+            public float fuel_residualAmountPerL;
+            public ElementTemplate.ElementTemplateFuelFlags fuel_flags;
+            public float fuel_minViableVolumeL;
+        }
 
-        //private struct RecipeDump
-        //{
-        //    public string identifier;
-        //    public string modIdentifier;
-        //    public string name;
-        //    public bool includeInBuild;
-        //    public string icon_identifier;
-        //    public string category_identifier;
-        //    public string rowGroup_identifier;
-        //    public bool hideInCraftingFrame;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput> input_data;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeItemInput> output_data;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> inputElemental_data;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> outputElemental_data;
-        //    public string relatedItemTemplateIdentifier;
-        //    public int sortingOrderWithinRowGroup;
-        //    public int timeMs;
-        //    public string burnableEnergyConsumptionKW_str;
-        //    public bool isInternal;
-        //    public Il2CppStringArray tags;
-        //    public bool forceShowOutputsAtTooltips;
-        //    public bool showBurnabelFuelCostInTooltip;
-        //    public string recipe_efficiency_str;
-        //    public int recipePriority;
-        //    public string _infoBox;
-        //}
+        private struct RecipeDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public string entitlementIdentifier;
+            public string icon_identifier;
+            public string category_identifier;
+            public string rowGroup_identifier;
+            public bool hideInDemo;
+            public bool isHiddenInCharacterCraftingFrame;
+            public bool isHiddenByNarrativeTrigger;
+            public bool isNeverUnseenRecipe;
+            public string narrativeTrigger;
+            public CraftingRecipe.CraftingRecipeItemInput[] input_data;
+            public CraftingRecipe.CraftingRecipeItemInput[] output_data;
+            public CraftingRecipe.CraftingRecipeElementalInput[] inputElemental_data;
+            public CraftingRecipe.CraftingRecipeElementalInput[] outputElemental_data;
+            public string relatedItemTemplateIdentifier;
+            public int sortingOrderWithinRowGroup;
+            public int timeMs;
+            public string[] tags;
+            public bool forceShowOutputsAtTooltips;
+            public int recipePriority;
+            public string extraInfoTooltipText;
+        }
 
-        //private struct TerrainBlockDump
-        //{
-        //    public string identifier;
-        //    public string modIdentifier;
-        //    public string name;
-        //    public TerrainBlockType.TerrainTypeFlags flags;
-        //    public float movementSpeedModifier;
-        //    public Color shatterColor;
-        //    public Color scanColor;
-        //    public bool destructible;
-        //    public string yieldItemOnDig;
-        //    public float miningTimeInSec;
-        //    //public MovementSoundPack movementSoundPack;
-        //    public Color mapColor;
-        //    public TerrainBlockType.DecorFlags decorFlags;
-        //    //public GameObject voxelMeshCorner;
-        //    public bool hasTrim;
-        //    public bool useTextureTiling;
-        //    public bool useLayerNoise;
-        //    public bool geologicalScanner_showOnScan;
-        //    public string ore_yield_id;
-        //    public int maxHeight;
-        //    public int minHeight;
-        //    public uint oreSpawn_chancePerChunk_ground;
-        //    public uint oreSpawn_chancePerChunk_surface;
-        //    public TerrainBlockType.OreSpawnFlags oreSpawnFlags;
-        //    public Vector3Int minSize;
-        //    public Vector3Int maxSize;
-        //    public int sizeRng;
-        //    public int averageYield;
-        //    public string yieldVarietyPercent_str;
-        //    public int depthIncreasePerTile;
-        //    public string miningHardness_str;
-        //    public Il2CppStringArray surfaceOre_worldDecor_identifier;
-        //    public int ore_startChunkX;
-        //    public int ore_startChunkZ;
-        //    public int rmd_ticksPerItem;
-        //    public string rmd_miningYield;
-        //    public int rmd_totalYield;
-        //    public Texture2DProxy texture_abledo;
-        //    public float smoothness;
-        //    public Texture2DProxy texture_height;
-        //    public float height;
-        //    public bool hasSideTextures;
-        //    public Texture2DProxy texture_side_abledo;
-        //    public Texture2DProxy texture_side_mask;
-        //    public float smoothness_side;
-        //    public Texture2DProxy texture_side_height;
-        //    public float height_side;
-        //    public bool hasBottomTextures;
-        //    public Texture2DProxy texture_bottom_abledo;
-        //    public float smoothness_bottom;
-        //    public float height_bottom;
-        //}
+        private struct TerrainBlockDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public TerrainBlockType.TerrainTypeFlags flags;
+            public float movementSpeedModifier;
+            public Color shatterColor;
+            public Color scanColor;
+            public bool destructible;
+            public string yieldItemOnDig;
+            public float miningTimeInSec;
+            public int requiredMiningHardnessLevel;
+            //public MovementSoundPack movementSoundPack;
+            public Color mapColor;
+            public TerrainBlockType.DecorFlags decorFlags;
+            public bool hasTrim;
+            public bool useTextureTiling;
+            public bool useLayerNoise;
+            public bool geologicalScanner_showOnScan;
+            public bool unlockedForOreScannerByDefault;
+            public string ore_yield_id;
+            public int maxHeight;
+            public int minHeight;
+            public uint oreSpawn_chancePerChunk_ground;
+            public uint oreSpawn_chancePerChunk_surface;
+            public TerrainBlockType.OreSpawnFlags oreSpawnFlags;
+            public Vector3IntProxy minSize;
+            public Vector3IntProxy maxSize;
+            public int sizeRng;
+            public int averageYield;
+            public string yieldVarietyPercent_str;
+            public int depthIncreasePerTile;
+            public WorldDecorSpawnInfo[] surfaceOre_worldDecor;
+            public TerrainBlockType.FixedOrePatchData[] fixedOrePatchDataArray;
+            public int rmd_ticksPerItem;
+            public string rmd_miningYield;
+            public int rmd_totalYield;
+            public string oreVeinMineable_yieldItem_identifier;
+            public int oreVeinMineable_averageYield;
+            public int oreVeinMineable_yieldVariety;
+            public Texture2DProxy texture_abledo;
+            public Texture2DProxy texture_metalHeightSmoothHeight;
+            public float blendSmoothness;
+            public bool hasSideTextures;
+            public Texture2DProxy texture_side_abledo;
+            public Texture2DProxy texture_side_metalSmoothHeight;
+            public Texture2DProxy texture_side_mask;
+            public Texture2DProxy texture_side_mask_metalSmoothHeight;
+            public bool hasBottomTextures;
+            public Texture2DProxy texture_bottom_abledo;
+            public Texture2DProxy texture_bottom_metalSmoothHeight;
+        }
 
-        //public struct ModularBuildingConnectionNodeDump
-        //{
-        //    public string bot_identifier;
-        //    public OffsetAndOrientationDump positionData;
-        //    public ulong botId;
-        //}
+        public struct BuildableObjectDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public BuildableObjectTemplate.BuildableObjectType type;
+            public BuildableObjectTemplate.SimulationType simulationType;
+            public BuildableObjectTemplate.SimulationSleepFlags simulationSleepFlags;
+            public bool simTypeSleep_initial;
+            public bool isSuperBuilding;
+            public Vector3IntProxy size;
+            public bool validateTerrainTileColliders;
+            public BuildableObjectTemplate.DragBuildType dragBuildType;
+            public float dragModeOrientationSlope_planeAngle;
+            public Quaternion dragModeOrientationSlope_planeAngleQuaternion;
+            public int dragModeOrientationSlope_yOrientationModifier;
+            public int dragModeOrientationSlope_yOffsetPerInstance;
+            public bool dragModeOrientationSlope_allowSideways;
+            public BuildableObjectTemplate.DragAxis dragModeLine_dragAxis;
+            public float dragModeLine_nonUnlockedYCorrection;
+            public BuildableObjectTemplate.DragAxis dragModePlane_dragAxis01;
+            public BuildableObjectTemplate.DragAxis dragModePlane_dragAxis02;
+            public BuildableObjectTemplate.DragMode[] dragModes;
+            public BuildableObjectTemplate.CustomSnapMode customSnapMode;
+            public float demolitionTimeSec;
+            public bool canBeDestroyedByDynamite;
+            public string conversionGroup_str;
+            public bool isVisibleOnMap;
+            public byte mapColorPriority;
+            public bool skipForRunningIdxGeneration;
+            //public AudioClip audioClip_customBuildSound;
+            public bool hasNameOverride;
+            public string nameOverride;
+            public bool canBeCopiedByTablet;
+            public Color defaultObjectColor;
+            public BuildableObjectTemplate.AnalyticsTrackerId analyticsTrackerId;
+            public bool hasToBeOnFoundation;
+            public bool floorShouldOutlineBuilding;
+            public BuildableObjectTemplate.FoundationConnectorType foundationConnection;
+            public int loaderLevel;
+            public bool disableLoaders;
+            public bool hasPipeLoaderSupport;
+            public v3i[] blockedLoaderPositions;
+            public bool rotationAllowed;
+            public bool canBeRotatedAroundXAxis;
+            public BuildableObjectTemplate.AdditionalAABB3D[] additionalAABBs_input;
+            public bool isModularBuilding;
+            public BuildableObjectTemplate.ModularBuildingType modularBuildingType;
+            public string modularBuildingModule_descriptionName;
+            public uint modularBuildingModule_amountItemCost;
+            public string modularBuildingModule_unlockedByResearchTemplateIdentifier;
+            public BuildableObjectTemplate.ModularBuildingConnectionNode[] modularBuildingConnectionNodes;
+            public BuildableObjectTemplate.ModularBuildingModuleLimit[] modularBuildingLimits;
+            public bool modularBuilding_forceRequirePCM;
+            public Vector3IntProxy modularBuildingLocalSearchAnchor;
+            public BuildableObjectTemplate.ModularEntityItemCosts[] modularBuildingItemCost;
+            public BuildableObjectTemplate.ModularEntityItemCosts[] modularBuildingRubble;
+            public bool modularBuilding_hasNoEnabledState;
+            public BuildableObjectTemplate.PowerComponentType powerComponentType;
+            public BuildableObjectTemplate.BuildableObjectPowerSubType powerSubType;
+            public string energyConsumptionKW_str;
+            public int powerProducer_drawPriority;
+            public bool spp_showToggleButton;
+            public bool spp_showPowerButton;
+            public bool spp_disablePowerCheck;
+            public bool spp_disableGridCheck;
+            public ScreenPanelProfile_Native.SPP_GridCheckType spp_gridCheckType;
+            public bool hasEnergyGridConnection;
+            public bool hasPoleGridConnection;
+            public int poleGrid_connectionRange;
+            public Vector3IntProxy poleGrid_connectorOffset;
+            public int poleGrid_maxConnections;
+            public int poleGrid_reservedConnections;
+            public BuildableObjectTemplate.PoleGridTypes poleGridType;
+            public BuildableObjectTemplate.PoleGridTypes poleGridConnectionMatrix;
+            public bool hasFuelManagerSolid;
+            public bool hasFuelManagerElemental;
+            public ElementTemplate.ElementTemplateFuelFlags fme_fuelFlags;
+            public string fme_lockedElementTemplateIdentifier;
+            public bool hasLightSource;
+            public BuildableObjectTemplate.LightEmitter[] lightEmitters;
+            public bool spawnFlyingDebrisWhenExploding;
+            public BuildableObjectTemplate.ItemBufferUIRow[] itemBufferSlotMap;
+            public bool hasRailings;
+            public WalkwayMeshEntry walkway_mesh_noRailings;
+            public WalkwayMeshEntry walkway_mesh_xPos;
+            public WalkwayMeshEntry walkway_mesh_xNeg;
+            public WalkwayMeshEntry walkway_mesh_zPos;
+            public WalkwayMeshEntry walkway_mesh_zNeg;
+            public WalkwayMeshEntry walkway_mesh_xPos_xNeg;
+            public WalkwayMeshEntry walkway_mesh_z_Pos_zNeg;
+            public WalkwayMeshEntry walkway_mesh_xPos_zPos;
+            public WalkwayMeshEntry walkway_mesh_xPos_zNeg;
+            public WalkwayMeshEntry walkway_mesh_xNeg_zPos;
+            public WalkwayMeshEntry walkway_mesh_xNeg_zNeg;
+            public WalkwayMeshEntry walkway_mesh_xPos_zNeg_xNeg;
+            public WalkwayMeshEntry walkway_mesh_zPos_xPos_zNeg;
+            public WalkwayMeshEntry walkway_mesh_xPos_zPos_xNeg;
+            public WalkwayMeshEntry walkway_mesh_zPos_xNeg_zNeg;
+            public WalkwayMeshEntry walkway_mesh_allRailings;
+            public bool hasIntraBuildingWalkways;
+            public BuildableObjectTemplate.IntraBuildingWalkwayData[] intraBuildingWalkwayData;
+            public bool hasAdjacentWalkwayOverrides;
+            public BuildableObjectTemplate.IntraBuildingWalkwayData[] adjacentWalkwayOverridesPos;
+            public bool hasConveyorConnectionManager;
+            public BuildableObjectTemplate.ModularBuildingConveyorConnectionData[] ccm_connectionData;
+            public bool hasStrutManager;
+            public BuildableObjectTemplate.AdditionalAABB3D[] sm_strutPillars;
+            public string sm_strutPillarBotIdentifier;
+            public bool hasFluidBoxManager;
+            public bool fbm_sendUpdateEventsForRegularFluidBoxes;
+            public BuildableObjectTemplate.FluidBoxData[] fbm_fluidBoxes;
+            public BuildableObjectTemplate.IOFluidBoxData[] fbm_ioFluidBoxes;
+            public int droneMiner_oreSearchRadius;
+            public int droneMiner_itemCapacityPerDrone;
+            public string droneMiner_miningSpeed_str;
+            public string droneMiner_droneCharge_str;
+            public int droneMiner_droneCount;
+            public Vector3IntProxy droneMiner_dockPositionInside;
+            public Vector3IntProxy droneMiner_dockPositionOutside;
+            //public AudioClip droneMiner_audioClip_droneHover;
+            //public AudioClip droneMiner_audioClip_droneMining;
+            public List<Vector3IntProxy> droneMiner_list_localBlocksAllowedToBeTraversed;
+            public float dissolver_elementalConsumptionPerSecond;
+            public string dissolver_solidsPerSecond_str;
+            public bool dissolver_isElemental;
+            public bool droneTransport_isStartStation;
+            public string droneTransport_energyConsumptionPerSecondFlightTime_kj_str;
+            public string droneTransport_energyRechargeRatePerSecond_kj_str;
+            public float droneTransport_travelSpeed_mPerSec;
+            public float droneTransport_rotationSpeedDegreePerSec;
+            public float droneTransport_droneYOffset;
+            public Vector3IntProxy loader_localBeltOffset;
+            public int loader_ticksPerAction;
+            public string loader_idlePowerConsumption_kjPerS_str;
+            public bool loader_isFilter;
+            public string pipeLoader_maxThroughputPerTickInLiter_str;
+            public string pipeLoader_idlePowerConsumption_kjPerS_str;
+            public List<string> pipeLoader_allowedPipeGroupIdentifiers;
+            public v3i pipeLoader_fluidBoxPositionOrigin_localOffset;
+            public v3i pipeLoader_fluidBoxPositionTarget_localOffset;
+            public v3i pipeLoader_buildingPosition_localOffset;
+            public uint storage_slotSize;
+            public BuildableObjectTemplate.ProducerRecipeType producerRecipeType;
+            public string producer_recipeTimeModifier_str;
+            //public AudioClip producer_audioClip_active;
+            public string producer_recipeType_fixed;
+            public string[] producer_recipeType_tags;
+            public string autoProducer_recipeTimeModifier_str;
+            //public AudioClip autoProducer_audioClip_active;
+            public string autoProducer_recipeType_tag;
+            //public AudioClip producer_audioClip_customItemFinishSound;
+            public bool conveyor_isSlope;
+            public string conveyor_slopePartner_str;
+            public int conveyor_speed_slotsPerTick;
+            public Texture2DProxy buildingPart_texture_albedo;
+            public bool buildingPart_hasSideTextures;
+            public Texture2DProxy buildingPart_texture_side_albedo;
+            public bool buildingPart_hasBottomTextures;
+            public Texture2DProxy buildingPart_texture_bottom_albedo;
+            public string battery_capacityKJ_str;
+            public int shippingPad_inventorySlotCount;
+            public string shippingPad_requiredChargeKJ_str;
+            public string shippingPad_chargePerSecondKJ_str;
+            public int shippingPad_timeInSpaceSec;
+            public bool pipe_hasVisualUpdate;
+            public uint pipe_visualUpdateFluidBoxTemplateIdx;
+            public string transformer_transmissionRate_kjPerS_str;
+            //public AudioClip transformer_audioClip_active;
+            public string lvgGenerator_transmissionRate_kjPerS_str;
+            public string lvgGenerator_lockedItemTemplate_identifier;
+            //public AudioClip lvgGenerator_audioClip_active;
+            public string lvgGenerator_efficiency_str;
+            public string solarPanel_outputMax_str;
+            public string solarPanel_outputMin_str;
+            public bool solarPanel_rotatingPart;
+            public BuildableObjectTemplate.WorldDecorMiningYield[] worldDecor_miningYield;
+            public float worldDecor_miningTimeSec;
+            //public AudioClip worldDecor_audioClip_afterHarvesting;
+            public bool worldDecor_isDebris;
+            public BuildableObjectTemplate.WorldDecorSpecialDrop[] worldDecor_specialDrops;
+            public Color worldDecor_scratchColor;
+            public bool worldDecor_canGrow;
+            public int worldDecor_growTimeSec;
+            public float worldDecor_growStartScale;
+            public string worldDecor_plantSeedIdentifier;
+            public string[] worldDecor_allowedGrowableTerrainBlocks;
+            public BuildableObjectTemplate.SuperBuildingLevel[] superBuilding_levels;
+            public string[] superBuilding_researchUnlocks_str;
+            public Vector3IntProxy[] superBuilding_allowedLoaderPositions;
+            public int superBuilding_loaderIndicator_rotY;
+            public bool superBuilding_refundOnDemolish;
+            public string researchLab_sciencePack_str;
+            public string[] researchEntity_scienceItems;
+            public string[] researchEntity_scienceItemsVisibilityResearch;
+            public string researchEntity_powerDemand_kjPerSecond_data;
+            public string pumpjack_amountPerSec_str;
+            public Vector3IntProxy pumpjack_drillOffset;
+            public int pumpjack_maxDrillDepth;
+            //public AudioClip pumpjack_audioClip_active;
+            public string burnerGenerator_powerGenertaionRate_kjPerS_str;
+            public string burnerGenerator_efficiency_str;
+            public string terrainBlock_tbtIdentifier;
+            public Vector3IntProxy minecartDepot_connectionPoint;
+            public BuildingManager.BuildOrientation minecartDepot_connectionSearchDirection;
+            public uint minecartDepot_miningInventorySlots;
+            public uint minecartDepot_cartInterval_sec;
+            public string minecartDepot_autobuildTrackTemplate_str;
+            public Vector3IntProxy[] minecartTracks_connectionPoints;
+            public BuildingManager.BuildOrientation[] minecartTracks_connectionSearchDirection;
+            public int minecartTracks_slotLength;
+            public int freightContainer_speedPerTick;
+            public long freightElevator_tierID;
+            public string elevatorStation_structureBOT_str;
+            //public AudioClip elevatorStation_audioClip_cabinMoving;
+            //public AudioClip elevatorStation_audioClip_doorsOpening;
+            //public AudioClip elevatorStation_audioClip_doorsClosing;
+            //public AudioClip elevatorStation_audioClip_bell;
+            public float door_secondsToOpen;
+            //public AudioClip door_audioClip_openClose_trigger;
+            //public AudioClip door_audioClip_openClose_loop;
+            //public AudioClip geologicalScanner_audioClip_active;
+            public string blastFurnace_speedModifier;
+            public string blastFurnace_outputMultiplier;
+            public string blastFurnace_optimalRunningTemp;
+            public string blastFurnace_minRunningTemp;
+            public string blastFurnace_hotAirTemplateIdentifier;
+            public int blastFurnace_shutdownTimer_base_sec;
+            public int blastFurnace_shutdownTimer_temp_sec;
+            public string blastFurnace_towerModule_capacity;
+            public string blastFurnace_towerModule_speedIncrease;
+            public string blastFurnace_towerModuleBotIdentifier;
+            public string blastFurnace_gasExhaustDrainModuleBotIdentifier;
+            public string blastFurnace_towerModule_hotAirConsumptionPercentIncrease;
+            public string blastFurnace_baseHotAirConsumptionPerTick;
+            public string blastFurnace_maxHeatLossPerTick;
+            public string blastFurnace_heatGainPerTick;
+            public string blastFurnace_speedPercentageAtMinRunningTemp;
+            public string resourceConverter_powerConsumption_kjPerSec;
+            public CraftingRecipe.CraftingRecipeElementalInput[] resourceConverter_input_elemental;
+            public CraftingRecipe.CraftingRecipeElementalInput[] resourceConverter_output_elemental;
+            public BuildableObjectTemplate.ResourceConverterModuleSpeedBonus[] resourceConverter_speedBonusModules;
+            public bool resourceConverter_hasAdjacencyBonus;
+            public string resourceConverter_powerDecreasePerAdjacentResourceConverter;
+            public byte resourceConverter_adjacencyBonusAxis;
+            //public AudioClip resourceConverter_audioClip_active;
+            public v3i frackingTower_drillOffset;
+            public uint frackingTower_maxDrillLength;
+            public uint frackingTower_powerConsumptionPercentagePerOptionalTowerModule;
+            public float frackingTower_fluidThroughputPerTowerPerSecond;
+            public string frackingTower_towerModuleBOT_identifier;
+            public float modularFluidTank_baseFluidCapacity;
+            public string modularFluidTank_towerModuleBOT_identifier;
+            public string modularFluidTank_topModuleBOT_identifier;
+            public float modularFluidTank_fluidCapacityPerTower;
+            public int trainLoadingStation_itemType;
+            public Vector3IntProxy trainLoadingStation_trackSearchOffset01;
+            public Vector3IntProxy trainLoadingStation_trackSearchOffset02;
+            public BuildableObjectTemplate.TrainLoadingStationCompatibleTrackTemplate[] trainLoadingStation_compatibleTrackTemplates;
+            public uint al_start_slotWidth;
+            public uint al_start_speedInSlotsPerTick;
+            public Vector3IntProxy al_start_localOffset_outputOrigin;
+            public Vector3IntProxy al_start_localOffset_outputTarget;
+            public string alStart_requiredPowerPerAction_kj_str;
+            public SplineDataContainer al_start_splineDataContainer;
+            public uint al_rail_slotWidth;
+            public uint al_rail_speedInSlotsPerTick;
+            public Vector3IntProxy al_rail_localOffset_inputOrigin;
+            public Vector3IntProxy al_rail_localOffset_inputTarget;
+            public Vector3IntProxy al_rail_localOffset_outputOrigin;
+            public Vector3IntProxy al_rail_localOffset_outputTarget;
+            public SplineDataContainer al_rail_splineDataContainer;
+            public int al_rail_csm_outputOrientationModifier;
+            public BuildableObjectTemplate.AL_ProducerMachineType al_producer_machineType;
+            public uint al_producer_slotWidth_input;
+            public uint al_producer_slotWidth_output;
+            public uint al_producer_speedInSlotsPerTick;
+            public Vector3IntProxy al_producer_localOffset_inputOrigin;
+            public Vector3IntProxy al_producer_localOffset_inputTarget;
+            public Vector3IntProxy al_producer_localOffset_outputOrigin;
+            public Vector3IntProxy al_producer_localOffset_outputTarget;
+            public SplineDataContainer al_producer_splineDataContainer_input;
+            public SplineDataContainer al_producer_splineDataContainer_output;
+            public uint al_endConsumer_itemCapacity;
+            public BuildableObjectTemplate.InteractionPointData[] al_endConsumer_interactionPoints;
+            public uint al_endConsumer_slotWidth;
+            public uint al_endConsumer_speedInSlotsPerTick;
+            public Vector3IntProxy al_endConsumer_localOffset_inputOrigin;
+            public Vector3IntProxy al_endConsumer_localOffset_inputTarget;
+            public SplineDataContainer al_endConsumer_splineDataContainer;
+            public uint al_merger_speedInSlotsPerTick;
+            public uint al_merger_slotWidth_input01;
+            public uint al_merger_slotWidth_input02;
+            public uint al_merger_slotWidth_input03;
+            public uint al_merger_slotWidth_input01_internal;
+            public uint al_merger_slotWidth_input02_internal;
+            public uint al_merger_slotWidth_input03_internal;
+            public uint al_merger_slotWidth_output;
+            public Vector3IntProxy al_merger_localOffset_inputOrigin01;
+            public Vector3IntProxy al_merger_localOffset_inputTarget01;
+            public Vector3IntProxy al_merger_localOffset_inputOrigin02;
+            public Vector3IntProxy al_merger_localOffset_inputTarget02;
+            public Vector3IntProxy al_merger_localOffset_inputOrigin03;
+            public Vector3IntProxy al_merger_localOffset_inputTarget03;
+            public Vector3IntProxy al_merger_localOffset_outputOrigin;
+            public Vector3IntProxy al_merger_localOffset_outputTarget;
+            public SplineDataContainer al_merger_splineDataContainer_input01;
+            public SplineDataContainer al_merger_splineDataContainer_input02;
+            public SplineDataContainer al_merger_splineDataContainer_input03;
+            public SplineDataContainer al_merger_splineDataContainer_input01_internal;
+            public SplineDataContainer al_merger_splineDataContainer_input02_internal;
+            public SplineDataContainer al_merger_splineDataContainer_input03_internal;
+            public SplineDataContainer al_merger_splineDataContainer_output;
+            public uint al_splitter_speedInSlotsPerTick;
+            public uint al_splitter_slotWidth_output01;
+            public uint al_splitter_slotWidth_output02;
+            public uint al_splitter_slotWidth_output03;
+            public uint al_splitter_slotWidth_input;
+            public Vector3IntProxy al_splitter_localOffset_outputOrigin01;
+            public Vector3IntProxy al_splitter_localOffset_outputTarget01;
+            public Vector3IntProxy al_splitter_localOffset_outputOrigin02;
+            public Vector3IntProxy al_splitter_localOffset_outputTarget02;
+            public Vector3IntProxy al_splitter_localOffset_outputOrigin03;
+            public Vector3IntProxy al_splitter_localOffset_outputTarget03;
+            public Vector3IntProxy al_splitter_localOffset_inputOrigin;
+            public Vector3IntProxy al_splitter_localOffset_inputTarget;
+            public SplineDataContainer al_splitter_splineDataContainer_output01;
+            public SplineDataContainer al_splitter_splineDataContainer_output02;
+            public SplineDataContainer al_splitter_splineDataContainer_output03;
+            public SplineDataContainer al_splitter_splineDataContainer_input;
+            public BuildingManager.BuildOrientation[] escalator_localForwardDirection;
+            public EscalatorGO.EscalatorType escalator_type;
+            public string[] baseStation_craftingRecipeIdentifier;
+            public uint oreVeinMiner_railMinerSlotLength;
+            public uint oreVeinMiner_railMinerDrillSlotPadding;
+            public uint oreVeinMiner_railMinerMoveSpeedSlotsPerTick;
+            public string oreVeinMiner_ticksPerOre_str;
+            public uint oreVeinMiner_minecartInventorySlotSize;
+            public uint oreVeinMiner_minecartMoveSpeedSlotsPerTick;
+            public uint oreVeinMiner_minecartSpawnOffset_toDepot;
+            public uint oreVeinMiner_minecartSpawnOffset_toMiner;
+            public uint oreVeinMiner_minecartDespawnDeadzone_toDepot;
+            public uint oreVeinMiner_minecartDespawnDeadzone_toMiner;
+            public float oreVeinMiner_minecartRenderingOffsetToDepot;
+            public float oreVeinMiner_minecartRenderingOffsetToMiner;
+            public uint oreVeinMiner_powerConsumptionBase_kjPerSec;
+            public uint oreVeinMiner_powerConsumptionMining_kjPerSec;
+            public string boiler_elementTemplateIdentifier_source;
+            public string boiler_elementTemplateIdentifier_output;
+            public float boiler_consumptionPerSecond;
+            public float boiler_outputPerSecond;
+            public string constructionDronePort_itemContributionPerSecond_str;
+            public float constructionDronePort_droneYOffset;
+            public float constructionDronePort_droneTravelHeight;
+            public float constructionDronePort_droneTravelSpeed_mPerS;
+            public float constructionDronePort_droneTravelRotation_degPerS;
+            public string constructionDronePort_energyBuffer_kj_str;
+            public string constructionDronePort_energyConsumptionPerItem_kj_str;
+            public string constructionDronePort_energyRechargeRate_kjPerS_str;
+            public v3i[] transportDronePort_dronePositions;
+            public uint transportDronePort_droneInventoryCapacity;
+            public float transportDronePort_droneTravelHeight;
+            public float transportDronePort_droneTravelSpeed_mPerS;
+            public float transportDronePort_droneTravelRotation_degPerS;
+            public BuildableObjectTemplate.InteractionPointData[] constructionWarehouse_interactionPoints;
+            public uint constructionWarehouse_recyclingSpeedItemsPerSecond;
+            public string constructionWarehouse_powerDemandRecycling_kjPerS_str;
+            public BuildableObjectTemplate.GreenhouseInput[] greenhouse_arrayInputs;
+            public uint greenhouse_doubleOutputPercentChance;
+            public uint greenhouse_craftingTimeMs;
+            public BuildableObjectTemplate.InteractionPointData[] salesItemWarehouse_interactionPoints;
+            public uint salesItemWarehouse_itemCapacity;
+            public BuildableObjectTemplate.InteractionPointData[] salesCurrencyWarehouse_interactionPoints;
+            public uint salesCurrencyWarehouse_itemCapacity;
+            public string emergencyBeacon_yieldItemTemplateIdentifier;
+            public string buddyKennel_critterTemplateIdentifier;
+            public v3i buddyKennel_critterPos_localOffset;
+            public uint scanningEntity_scanRange;
+            public uint scanningEntity_secondsPerChunk;
+            public uint scanningEntity_scanRangeAddPerModule;
+            public uint scanningEntity_additionalScanSpeedPercentagePerModule;
+            public string scanningEntity_speedModuleIdentifier;
+            public string scanningEntity_distanceModuleIdentifier;
+            public uint scanningEntity_additionalPowerConsumptionPercentagePerOptionalModule;
+        }
 
-        //public struct OffsetAndOrientationDump
-        //{
-        //    public Vector3Int offset;
-        //    public BuildingManager.BuildOrientation orientation;
-        //}
+        public struct ResearchDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public string icon_identifier;
+            public bool includeInBuild;
+            public bool includeInDemo;
+            public string entitlementIdentifier;
+            public ResearchTemplate.ResearchTemplateFlags flags;
+            public bool isInternal;
+            public string internalResearchUnlockDescription;
+            public string manualEndlessResearchTemplate_str;
+            public string description;
+            public string researchContext;
+            public uint secondsPerScienceItem;
+            public ResearchTemplate.ResearchTemplateItemInput[] input_data;
+            public List<string> list_researchDependencies_str;
+            public List<string> list_craftingUnlocks_str;
+            public List<string> list_blastFurnaceModes_str;
+            public List<string> list_alots_str;
+            public List<string> list_oreScannerUnlocks_str;
+            public string mapScanner_ore_identifier;
+            public string mapScanner_reservoir_identifier;
+            public int inventorySize_additionalInventorySlots;
+            public int endlessResearch_amountOfManualEndlessResearches;
+            public string characterCraftingSpeed_additionalDecrementPercentage_str;
+            public string miningDrillSpeed_miningTimeMultiplier_str;
+            public int miningHardness_unlockedLevel;
+            public string jetpackSpeed_speedIncreasmentPercent_str;
+        }
 
-        //public struct BuildableObjectDump
-        //{
-        //    public string modIdentifier;
-        //    public string identifier;
-        //    public string name;
-        //    public bool includeInBuild;
-        //    public BuildableObjectTemplate.BuildableObjectType type;
-        //    public BuildableObjectTemplate.SimulationType simulationType;
-        //    public BuildableObjectTemplate.SimulationSleepFlags simulationSleepFlags;
-        //    public bool simTypeSleep_initial;
-        //    public bool isSuperBuilding;
-        //    public Vector3Int size;
-        //    // public GameObject prefab;
-        //    public bool enableBatching;
-        //    public BuildableObjectTemplate.DragBuildType dragBuildType;
-        //    public float dragModeOrientationSlope_planeAngle;
-        //    public int dragModeOrientationSlope_yOrientationModifier;
-        //    public int dragModeOrientationSlope_yOffsetPerInstance;
-        //    public bool dragModeOrientationSlope_allowSideways;
-        //    public Il2CppReferenceArray<BuildableObjectTemplate.DragMode> dragModes;
-        //    public BuildableObjectTemplate.CustomSnapMode customSnapMode;
-        //    public float demolitionTimeSec;
-        //    public bool canBeDestroyedByDynamite;
-        //    public string conversionGroup_str;
-        //    public bool isVisibleOnMap;
-        //    public byte mapColorPriority;
-        //    public bool skipForRunningIdxGeneration;
-        //    // public AudioClip audioClip_customBuildSound;
-        //    // public AudioClip audioClip_customItemFinishSound;
-        //    public int audioClipIdx_customItemFinishSound;
-        //    public bool hasNameOverride;
-        //    public string nameOverride;
-        //    public BuildableObjectTemplate.ScreenPanelType screenPanelType;
-        //    public bool hasToBeOnFoundation;
-        //    public bool floorShouldOutlineBuilding;
-        //    public BuildableObjectTemplate.FoundationConnectorType foundationConnection;
-        //    public int loaderLevel;
-        //    public bool disableLoaders;
-        //    public bool hasPipeLoaderSupport;
-        //    public Il2CppStructArray<v3i> blockedLoaderPositions;
-        //    public bool rotationAllowed;
-        //    public bool canBeRotatedAroundXAxis;
-        //    public Il2CppStructArray<BuildableObjectTemplate.AdditionalAABB3D> additionalAABBs_input;
-        //    public bool isModularBuilding;
-        //    public BuildableObjectTemplate.ModularBuildingType modularBuildingType;
-        //    public string modularBuildingModule_descriptionName;
-        //    public uint modularBuildingModule_amountItemCost;
-        //    public string modularBuildingModule_unlockedByResearchTemplateIdentifier;
-        //    public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingConnectionNode> modularBuildingConnectionNodes;
-        //    //public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingModuleLimit> modularBuildingLimits;
-        //    public Vector3Int modularBuildingLocalSearchAnchor;
-        //    public bool modularBuildingHasConveyorConnectionManager;
-        //    //public Il2CppStructArray<BuildableObjectTemplate.ModularBuildingConveyorConnectionData> modularBuildingConveyorConnectionData;
-        //    public bool modularBuildingHasPipeConnectionManager;
-        //    //public Il2CppReferenceArray<BuildableObjectTemplate.ModularBuildingPipeConnectionData> modularBuildingPipeConnectionData;
-        //    public string modularBuildingPipeAllowedPipeMaxThroughputPerTickInLiter_str;
-        //    public BuildableObjectTemplate.BuildableObjectPowerSubType powerSubType;
-        //    public bool spp_showPowerButton;
-        //    public string energyConsumptionKW_str;
-        //    public bool hasEnergyGridConnection;
-        //    public int powerProducer_drawPriority;
-        //    public bool hasFuelManagerSolid;
-        //    public bool spawnFlyingDebrisWhenExploding;
-        //    // public GameObject debrisWithExplosionForcePrefab;
-        //    public bool hasLightSource;
-        //    //public Il2CppStructArray<BuildableObjectTemplate.LightEmitter> lightEmitters;
-        //    public bool hasPoleGridConnection;
-        //    public int poleGrid_connectionRange;
-        //    public Vector3Int poleGrid_connectorOffset;
-        //    public int poleGrid_maxConnections;
-        //    public int poleGrid_reservedConnections;
-        //    public BuildableObjectTemplate.PoleGridTypes poleGridType;
-        //    public BuildableObjectTemplate.PoleGridTypes poleGridConnectionMatrix;
-        //    public bool hasIntraBuildingWalkways;
-        //    //public Il2CppStructArray<BuildableObjectTemplate.IntraBuildingWalkwayData> intraBuildingWalkwayData;
-        //    public bool hasAdjacentWalkwayOverrides;
-        //    //public Il2CppStructArray<BuildableObjectTemplate.IntraBuildingWalkwayData> adjacentWalkwayOverridesPos;
-        //    public int droneMiner_oreSearchRadius;
-        //    public int droneMiner_itemCapacityPerDrone;
-        //    public string droneMiner_miningPower_str;
-        //    public string droneMiner_miningSpeed_str;
-        //    public string droneMiner_droneCharge_str;
-        //    public int droneMiner_droneCount;
-        //    public Vector3Int droneMiner_dockPositionInside;
-        //    public Vector3Int droneMiner_dockPositionOutside;
-        //    // public AudioClip droneMiner_audioClip_droneHover;
-        //    // public AudioClip droneMiner_audioClip_droneMining;
-        //    // public GameObject droneMiner_dronePrefab;
-        //    public List<Vector3Int> droneMiner_list_localBlocksAllowedToBeTraversed;
-        //    public Vector3Int loader_localBeltOffset;
-        //    public int loader_ticksPerAction;
-        //    public string loader_idlePowerConsumption_kjPerS_str;
-        //    // public Mesh loader_meshDefault;
-        //    // public Mesh loader_meshParallel;
-        //    // public Mesh loader_meshStraight;
-        //    // public Material loader_material_default_impostor;
-        //    // public Material loader_material_default_impostor_orange;
-        //    // public GameObject loader_prefabOutputDummy;
-        //    public bool loader_isFilter;
-        //    public string pipeLoader_maxThroughputPerTickInLiter_str;
-        //    public string pipeLoader_idlePowerConsumption_kjPerS_str;
-        //    public List<string> pipeLoader_allowedPipeGroupIdentifiers;
-        //    public uint storage_slotSize;
-        //    public string tank_volume_l_str;
-        //    public BuildableObjectTemplate.ProducerRecipeType producerRecipeType;
-        //    public string producer_recipeTimeModifier_str;
-        //    public int producer_energyInputType;
-        //    // public AudioClip producer_audioClip_active;
-        //    public string producer_recipeType_fixed;
-        //    public Il2CppStringArray producer_recipeType_tags;
-        //    public bool conveyor_isSlope;
-        //    public string conveyor_slopePartner_str;
-        //    // public Material conveyor_material;
-        //    // public Material conveyor_material_inv;
-        //    public int conveyor_speed_slotsPerTick;
-        //    // public Texture2D buildingPart_texture_albedo;
-        //    public bool buildingPart_hasSideTextures;
-        //    // public Texture2D buildingPart_texture_side_albedo;
-        //    public bool buildingPart_hasBottomTextures;
-        //    // public Texture2D buildingPart_texture_bottom_albedo;
-        //    // public GameObject voxelMeshCorner;
-        //    // public VoxelTiler voxelTiler;
-        //    public string turbine_powerModifier_str;
-        //    public string turbine_reactionItemIdentifier;
-        //    public string battery_capacityKJ_str;
-        //    public int shippingPad_inventorySlotCount;
-        //    public string shippingPad_requiredChargeKJ_str;
-        //    public string shippingPad_chargePerSecondKJ_str;
-        //    public int shippingPad_timeInSpaceSec;
-        //    public Il2CppStructArray<BuildableObjectTemplate.FluidBox> pipe_fluidBoxes;
-        //    public string pipe_fluidBoxCapacity_l_str;
-        //    public string pipe_groupIdentifier_str;
-        //    public bool pipe_hasVisualUpdate;
-        //    public uint pipe_visualUpdateFluidBoxTemplateIdx;
-        //    public string pipe_MASS_OF_LIQUID_DEFAULT_SQUARED_FPM_str;
-        //    public string pipe_DAMPING_FACTOR_FPM_str;
-        //    public string pipe_FRICTION_OF_LIQUID_DEFAULT_FPM_str;
-        //    public string transformer_transmissionRate_kjPerS_str;
-        //    // public AudioClip transformer_audioClip_active;
-        //    public string biomassBurner_transmissionRate_kjPerS_str;
-        //    public string biomassBurner_source_str;
-        //    // public AudioClip biomassBurner_audioClip_active;
-        //    public string solarPanel_outputMax_str;
-        //    public string solarPanel_outputMin_str;
-        //    public bool solarPanel_rotatingPart;
-        //    public string worldDecor_miningYield_str;
-        //    public int worldDecor_miningYield_amount;
-        //    public float worldDecor_miningTimeSec;
-        //    // public GameObject worldDecor_despawnPrefab;
-        //    // public Material worldDecor_drillMaterial;
-        //    // public AudioClip worldDecor_audioClip_afterHarvesting;
-        //    public bool worldDecor_isDebris;
-        //    public bool worldDecor_useColorHue;
-        //    // public Il2CppReferenceArray<GameObject> worldDecor_huePrefabs;
-        //    //public Il2CppReferenceArray<BuildableObjectTemplate.WorldDecorSpecialDrop> worldDecor_specialDrops;
-        //    public Color worldDecor_scratchColor;
-        //    public string worldDecorGrowing_fullyGrownIdentifier_str;
-        //    public int worldDecorGrowing_growingTimeSec;
-        //    public Vector3 worldDecorGrowing_startingScale;
-        //    //public Il2CppReferenceArray<BuildableObjectTemplate.SuperBuildingLevel> superBuilding_levels;
-        //    public Il2CppStringArray superBuilding_researchUnlocks_str;
-        //    public Il2CppStructArray<Vector3Int> superBuilding_allowedLoaderPositions;
-        //    public int superBuilding_loaderIndicator_rotY;
-        //    public bool superBuilding_refundOnDemolish;
-        //    public string researchLab_sciencePack_str;
-        //    public string pumpjack_amountPerSec_str;
-        //    public Vector3Int pumpjack_drillOffset;
-        //    public int pumpjack_maxDrillDepth;
-        //    // public AudioClip pumpjack_audioClip_active;
-        //    public string burnerGenerator_powerGenertaionRate_kjPerS_str;
-        //    // public AudioClip burnerGenerator_audioClip_active;
-        //    // public Mesh mesh_powerPole;
-        //    // public Material material_powerPolePreview;
-        //    public string terrainBlock_tbtIdentifier;
-        //    // public Material mat_lightOn;
-        //    // public Material mat_lightOff;
-        //    public Vector3Int minecartDepot_connectionPoint;
-        //    public BuildingManager.BuildOrientation minecartDepot_connectionSearchDirection;
-        //    public uint minecartDepot_miningInventorySlots;
-        //    public uint minecartDepot_cartInterval_sec;
-        //    public string minecartDepot_autobuildTrackTemplate_str;
-        //    public Il2CppStructArray<Vector3Int> minecartTracks_connectionPoints;
-        //    public Il2CppStructArray<BuildingManager.BuildOrientation> minecartTracks_connectionSearchDirection;
-        //    public int minecartTracks_slotLength;
-        //    public int freightContainer_speedPerTick;
-        //    public long freightElevator_tierID;
-        //    public string elevatorStation_structureBOT_str;
-        //    // public AudioClip elevatorStation_audioClip_cabinMoving;
-        //    // public AudioClip elevatorStation_audioClip_doorsOpening;
-        //    // public AudioClip elevatorStation_audioClip_doorsClosing;
-        //    // public AudioClip elevatorStation_audioClip_bell;
-        //    public float door_secondsToOpen;
-        //    // public AudioClip door_audioClip_openClose_trigger;
-        //    // public AudioClip door_audioClip_openClose_loop;
-        //    // public AudioClip geologicalScanner_audioClip_active;
-        //    public string blastFurnace_speedModifier;
-        //    public string blastFurnace_outputMultiplier;
-        //    public string blastFurnace_optimalRunningTemp;
-        //    public string blastFurnace_minRunningTemp;
-        //    public string blastFurnace_hotAirTemplateIdentifier;
-        //    public int blastFurnace_shutdownTimer_base_sec;
-        //    public int blastFurnace_shutdownTimer_temp_sec;
-        //    public string blastFurnace_towerModule_capacity;
-        //    public string blastFurnace_towerModule_speedIncrease;
-        //    public string blastFurnace_towerModuleBotIdentifier;
-        //    public string blastFurnace_gasExhaustDrainModuleBotIdentifier;
-        //    public string blastFurnace_towerModule_hotAirConsumptionPercentIncrease;
-        //    public string blastFurnace_baseHotAirConsumptionPerTick;
-        //    public string blastFurnace_maxHeatLossPerTick;
-        //    public string blastFurnace_heatGainPerTick;
-        //    public string blastFurnace_speedPercentageAtMinRunningTemp;
-        //    public byte resourceConverter_type;
-        //    public string resourceConverter_powerConsumption_kjPerSec;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> resourceConverter_input_elemental;
-        //    public Il2CppReferenceArray<CraftingRecipe.CraftingRecipeElementalInput> resourceConverter_output_elemental;
-        //    //public Il2CppReferenceArray<BuildableObjectTemplate.ResourceConverterModuleSpeedBonus> resourceConverter_speedBonusModules;
-        //    public bool resourceConverter_hasAdjacencyBonus;
-        //    public string resourceConverter_powerDecreasePerAdjacentResourceConverter;
-        //    public byte resourceConverter_adjacencyBonusAxis;
-        //    //public AudioClip resourceConverter_audioClip_active;
-        //}
+        public struct BiomeDump
+        {
+            public string modIdentifier;
+            public string identifier;
+            public string name;
+            public Color32 gridColor;
+            public bool isHeightBased;
+            public int lowestPossibleHeight;
+            public string surfaceBlock_identifier;
+            public string groundBlock_identifier;
+            public EnvironmentEffectSpawnInfo[] effects;
+            public uint effectChancePerBlockPercent;
+            public uint temperature_min;
+            public uint precipitation_min;
+            public EnvironmentEvent environmentEvent;
+            public BiomeLayerTemplate biomeLayer;
+        }
 
-        //public struct ResearchDump
-        //{
-        //    public string identifier;
-        //    public string modIdentifier;
-        //    public string name;
-        //    public string icon_identifier;
-        //    public ResearchTemplate.ResearchTemplateFlags flags;
-        //    public bool isInternal;
-        //    public bool manualEndlessResearch;
-        //    public string manualEndlessResearchTemplate_str;
-        //    public string description;
-        //    public Il2CppReferenceArray<ResearchTemplate.ResearchTemplateItemInput> input_data;
-        //    public List<string> list_researchDependencies_str;
-        //    public List<string> list_craftingUnlocks_str;
-        //    public List<string> list_blastFurnaceModes_str;
-        //    public string mapScanner_ore_identifier;
-        //    public string mapScanner_reservoir_identifier;
-        //    public int inventorySize_additionalInventorySlots;
-        //    public int endlessResearch_minLevelToDisplay;
-        //    public string characterCraftingSpeed_additionalDecrementPercentage_str;
-        //    public string miningDrillSpeed_miningTimeMultiplier_str;
-        //}
+        public struct Vector3IntProxy
+        {
+            public int x, y, z;
 
-        //public struct BiomeDump
-        //{
-        //    public string identifier;
-        //    public string modIdentifier;
-        //    public string name;
-        //    public bool isHeightBased;
-        //    public int lowestPossibleHeight;
-        //    public string surfaceBlock_identifier;
-        //    public string groundBlock_identifier;
-        //    public Il2CppStringArray decorIdentifier;
-        //    public Il2CppStringArray vegetationIdentifier;
-        //    public uint vegetationChancePerBlockPercent;
-        //}
+            public Vector3IntProxy(int x, int y, int z)
+            {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+            }
+
+            public Vector3IntProxy(Vector3Int vector)
+            {
+                x = vector.x;
+                y = vector.y;
+                z = vector.z;
+            }
+        }
 
         public struct Texture2DProxy
         {
@@ -1631,493 +1726,6 @@ namespace Tweakificator
             }
         }
 #pragma warning restore CS0649
-
-        //class ObjectConverter<T> : JsonConverter where T : new()
-        //{
-        //    private delegate void MemberWriter(JObject target, object value, JsonSerializer serializer);
-        //    private delegate void MemberReader(JObject source, object value, JsonSerializer serializer);
-
-        //    private readonly MemberWriter[] _memberWriters;
-        //    private readonly MemberReader[] _memberReaders;
-
-        //    public ObjectConverter(params string[] memberNames)
-        //    {
-        //        _memberWriters = new MemberWriter[memberNames.Length];
-        //        _memberReaders = new MemberReader[memberNames.Length];
-        //        for (int i = 0; i < memberNames.Length; ++i)
-        //        {
-        //            var property = typeof(T).GetProperty(memberNames[i]);
-        //            if (property != null)
-        //            {
-        //                if (property.PropertyType == typeof(Sprite))
-        //                {
-        //                    _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(property.Name, JToken.FromObject(((Sprite)property.GetValue(value)).name, serializer));
-        //                    _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => property.SetValue(value, getIcon(source[property.Name].Value<string>()));
-        //                }
-        //                else
-        //                {
-        //                    _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(property.Name, JToken.FromObject(property.GetValue(value), serializer));
-        //                    _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => property.SetValue(value, invokeValue(property.PropertyType, source[property.Name]));
-        //                }
-        //            }
-        //            else
-        //            {
-        //                var field = typeof(T).GetField(memberNames[i]);
-        //                if (field != null)
-        //                {
-        //                    if (field.FieldType == typeof(Sprite))
-        //                    {
-        //                        _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(field.Name, JToken.FromObject(((Sprite)field.GetValue(value)).name, serializer));
-        //                        _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => field.SetValue(value, getIcon(source[field.Name].Value<string>()));
-        //                    }
-        //                    else
-        //                    {
-        //                        _memberWriters[i] = (JObject target, object value, JsonSerializer serializer) => target.Add(field.Name, JToken.FromObject(field.GetValue(value), serializer));
-        //                        _memberReaders[i] = (JObject source, object value, JsonSerializer serializer) => field.SetValue(value, invokeValue(field.FieldType, source[field.Name]));
-        //                    }
-        //                }
-        //                else
-        //                {
-        //                    Plugin.log.LogErrorFormat("Member {0} not found!", memberNames[i]);
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(T);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = (JObject)JToken.ReadFrom(reader);
-        //        if (existingValue == null) existingValue = new T();
-        //        foreach (var memberReader in _memberReaders) memberReader(source, existingValue, serializer);
-        //        return existingValue;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var target = new JObject();
-        //        foreach (var memberWriter in _memberWriters) memberWriter(target, value, serializer);
-        //        target.WriteTo(writer);
-        //    }
-        //}
-
-        //class ArrayMapConverter<E> : JsonConverter<E>
-        //{
-        //    private readonly PropertyInfo identifierProperty;
-        //    private readonly PropertyInfo[] propertys;
-
-        //    public ArrayMapConverter(string identifierLabel, params string[] propertyLabels)
-        //    {
-        //        identifierProperty = typeof(E).GetProperty(identifierLabel);
-        //        propertys = new PropertyInfo[propertyLabels.Length];
-        //        for (int i = 0; i < propertyLabels.Length; ++i) propertys[i] = typeof(E).GetProperty(propertyLabels[i]);
-        //    }
-
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(E[]);
-        //    }
-
-        //    public override E? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
-        //    {
-        //        throw new System.NotImplementedException();
-        //    }
-
-        //    public override void Write(Utf8JsonWriter writer, E value, JsonSerializerOptions options)
-        //    {
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var targetValue = (E[])existingValue ?? (new E[0]);
-        //        var sources = (JObject)JToken.ReadFrom(reader);
-        //        var targets = new List<E>(targetValue.Length);
-        //        bool changed = false;
-        //        for (int i = 0; i < targetValue.Length; ++i) targets.Add(targetValue[i]);
-
-        //        int findTarget(string identifier)
-        //        {
-        //            for (int i = 0; i < targets.Count; ++i)
-        //            {
-        //                if ((string)identifierProperty.GetValue(targets[i]) == identifier) return i;
-        //            }
-        //            return -1;
-        //        }
-
-        //        foreach (var entry in sources)
-        //        {
-        //            var source = (JObject)entry.Value;
-        //            if (source != null)
-        //            {
-        //                var identifier = entry.Key;
-        //                var index = findTarget(identifier);
-        //                if (index >= 0)
-        //                {
-        //                    var target = targets[index];
-        //                    bool isEmpty = true;
-        //                    foreach (var property in propertys)
-        //                    {
-        //                        if (source.ContainsKey(property.Name))
-        //                        {
-        //                            property.SetValue(target, serializer.Deserialize(new JTokenReader(source[property.Name]), property.PropertyType));
-        //                            isEmpty = false;
-        //                        }
-        //                    }
-
-        //                    if (isEmpty)
-        //                    {
-        //                        if (Plugin.verbose.Get()) Plugin.log.Log(string.Format("Deleting {0} {1}.", typeof(E).Name, identifier));
-        //                        targets.RemoveAt(index);
-        //                        changed = true;
-        //                    }
-        //                    else
-        //                    {
-        //                        if (Plugin.verbose.Get()) Plugin.log.Log(string.Format("Patching {0} {1}.", typeof(E).Name, identifier));
-        //                        targets[index] = target;
-        //                        changed = true;
-        //                    }
-        //                }
-        //                else
-        //                {
-        //                    var target = typeof(E).GetConstructor(new System.Type[0]).Invoke(new object[0]);
-        //                    identifierProperty.SetValue(target, identifier);
-        //                    serializer.Populate(new JTokenReader(source), target);
-        //                    if (Plugin.verbose.Get()) Plugin.log.LogFormat("Adding {0} {1}.", typeof(E).Name, identifier);
-        //                    targets.Add((E)target);
-        //                    changed = true;
-        //                }
-        //            }
-        //        }
-
-        //        if (!changed) return existingValue;
-
-        //        return targets.ToArray();
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var source = (E[])value;
-        //        var target = new JObject();
-        //        for (int i = 0; i < source.Length; ++i)
-        //        {
-        //            var identifier = identifierProperty.GetValue(source[i]);
-        //            var element = new JObject();
-        //            foreach (var property in propertys)
-        //            {
-        //                var propertyValue = property.GetValue(source[i]);
-        //                if (propertyValue != null)
-        //                {
-        //                    element[property.Name] = JToken.FromObject(propertyValue, serializer);
-        //                }
-        //            }
-        //            target[identifier] = element;
-        //        }
-        //        target.WriteTo(writer);
-        //    }
-        //}
-
-        //class EnumConverter<E> : JsonConverter where E : System.Enum
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(E);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        try
-        //        {
-        //            E target = (E)System.Enum.Parse(objectType, JToken.ReadFrom(reader).Value<string>(), true);
-        //            return target;
-        //        }
-        //        catch
-        //        {
-        //            return default(E);
-        //        }
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        writer.WriteValue(((E)value).ToString());
-        //    }
-        //}
-
-        //class EnumFlagsConverter<E> : JsonConverter where E : System.Enum
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(E);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        int flags = 0;
-        //        foreach (var flagString in JToken.ReadFrom(reader).Value<string>().Split('|'))
-        //        {
-        //            try
-        //            {
-        //                E target = (E)System.Enum.Parse(objectType, flagString, true);
-        //                flags |= (int)(object)target;
-        //            }
-        //            catch { }
-        //        }
-        //        return (E)(object)flags;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var sourceFlags = (int)value;
-        //        var flagsString = "";
-        //        foreach (var flag in System.Enum.GetValues(typeof(E)))
-        //        {
-        //            if ((sourceFlags & (int)flag) != 0)
-        //            {
-        //                flagsString = ((flagsString.Length > 0) ? flagsString + "|" : "") + System.Enum.GetName(typeof(E), flag);
-        //            }
-        //        }
-        //        writer.WriteValue(flagsString);
-        //    }
-        //}
-
-        //class EnumFlagsConverterByte<E> : JsonConverter where E : System.Enum
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(E);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        byte flags = 0;
-        //        foreach (var flagString in JToken.ReadFrom(reader).Value<string>().Split('|'))
-        //        {
-        //            try
-        //            {
-        //                E target = (E)System.Enum.Parse(objectType, flagString, true);
-        //                flags |= (byte)(object)target;
-        //            }
-        //            catch { }
-        //        }
-        //        return (E)(object)flags;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var sourceFlags = (byte)value;
-        //        var flagsString = "";
-        //        foreach (var flag in System.Enum.GetValues(typeof(E)))
-        //        {
-        //            if ((sourceFlags & (byte)flag) != 0)
-        //            {
-        //                flagsString = ((flagsString.Length > 0) ? flagsString + "|" : "") + System.Enum.GetName(typeof(E), flag);
-        //            }
-        //        }
-        //        writer.WriteValue(flagsString);
-        //    }
-        //}
-
-        //class StringArrayConverter : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(string[]);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = (JArray)JToken.ReadFrom(reader);
-        //        var target = new string[source.Count];
-        //        for (int i = 0; i < source.Count; ++i) target[i] = source[i].Value<string>();
-        //        return target;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var source = (string[])value;
-        //        writer.WriteStartArray();
-        //        foreach (var element in source) writer.WriteValue(element);
-        //        writer.WriteEndArray();
-        //    }
-        //}
-
-        //class StringConverter : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(string);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = JToken.ReadFrom(reader).ToString();
-        //        //var source = serializer.Deserialize<string>(reader);
-        //        if (source.StartsWith("{") && source.EndsWith("}"))
-        //        {
-        //            try
-        //            {
-        //                var e = new NCalc.Expression(source.Substring(1, source.Length - 2));
-        //                e.EvaluateFunction += NCalcExtensions.Extend;
-        //                e.Parameters["value"] = (existingValue as string) ?? "";
-        //                var result = e.Evaluate() ?? "";
-        //                return result.ToString();
-        //            }
-        //            catch (System.Exception e)
-        //            {
-        //                Plugin.log.LogError(e);
-        //                return source;
-        //            }
-        //        }
-
-        //        return source;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        writer.WriteValue(value.ToString());
-        //    }
-        //}
-
-        //class NumericConverter : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        switch (System.Type.GetTypeCode(objectType))
-        //        {
-        //            case System.TypeCode.Byte:
-        //            case System.TypeCode.SByte:
-        //            case System.TypeCode.UInt16:
-        //            case System.TypeCode.UInt32:
-        //            case System.TypeCode.UInt64:
-        //            case System.TypeCode.Int16:
-        //            case System.TypeCode.Int32:
-        //            case System.TypeCode.Int64:
-        //            case System.TypeCode.Decimal:
-        //            case System.TypeCode.Double:
-        //            case System.TypeCode.Single:
-        //                return true;
-        //            default:
-        //                return false;
-        //        }
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = JToken.ReadFrom(reader).ToString();
-        //        if (source.StartsWith("{") && source.EndsWith("}"))
-        //        {
-        //            try
-        //            {
-        //                var e = new NCalc.Expression(source.Substring(1, source.Length - 2));
-        //                e.EvaluateFunction += NCalcExtensions.Extend;
-        //                e.Parameters["value"] = existingValue ?? 0;
-        //                var result = e.Evaluate() ?? 0;
-        //                return System.Convert.ChangeType(result, objectType);
-        //            }
-        //            catch (System.Exception e)
-        //            {
-        //                Plugin.log.LogError(e);
-        //                return source;
-        //            }
-        //        }
-
-        //        return System.Convert.ChangeType(source, objectType);
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        writer.WriteValue(value);
-        //    }
-        //}
-
-        //class ListConverter<T> : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(List<T>);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = (JArray)JToken.ReadFrom(reader);
-        //        var target = new List<T>(source.Count);
-        //        for (int i = 0; i < source.Count; ++i) target.Add(serializer.Deserialize<T>(new JTokenReader(source[i])));
-        //        return target;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var source = (List<T>)value;
-        //        writer.WriteStartArray();
-        //        foreach (var element in source) serializer.Serialize(writer, element);
-        //        writer.WriteEndArray();
-        //    }
-        //}
-
-        //class ReferenceArrayConverter<T> : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(T[]);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        var source = (JArray)JToken.ReadFrom(reader);
-        //        var target = new T[source.Count];
-        //        for (int i = 0; i < source.Count; ++i) target[i] = serializer.Deserialize<T>(new JTokenReader(source[i]));
-        //        return target;
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var source = (T[])value;
-        //        writer.WriteStartArray();
-        //        foreach (var element in source) serializer.Serialize(writer, element);
-        //        writer.WriteEndArray();
-        //    }
-        //}
-
-        //class Texture2DProxyConverter : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(Texture2DProxy);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        return new Texture2DProxy(JToken.ReadFrom(reader).Value<string>());
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var texture = (Texture2DProxy)value;
-        //        writer.WriteValue(texture.name);
-        //    }
-        //}
-
-        //class SpriteConverter : JsonConverter
-        //{
-        //    public override bool CanConvert(System.Type objectType)
-        //    {
-        //        return objectType == typeof(Sprite);
-        //    }
-
-        //    public override object ReadJson(JsonReader reader, System.Type objectType, object existingValue, JsonSerializer serializer)
-        //    {
-        //        return getIcon(JToken.ReadFrom(reader).Value<string>());
-        //    }
-
-        //    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        //    {
-        //        var sprite = (Sprite)value;
-        //        writer.WriteValue(sprite.name);
-        //    }
-        //}
     }
 
     public static class ResourceExt
@@ -2199,6 +1807,27 @@ namespace Tweakificator
                 return ms.ToArray();
             }
 
+        }
+    }
+
+    public static class VariantExtensions
+    {
+        public static Variant Merge(this Variant self, Variant other)
+        {
+            if (self == null) return other;
+            if (other == null) return self;
+
+            if (self is ProxyObject selfObject && other is ProxyObject otherObject)
+            {
+                foreach (var key in otherObject.Keys)
+                {
+                    selfObject[key] = selfObject[key].Merge(otherObject[key]);
+                }
+
+                return self;
+            }
+
+            return other;
         }
     }
 }
