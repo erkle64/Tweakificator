@@ -8,10 +8,6 @@ using System.Text.RegularExpressions;
 using Unfoundry;
 using UnityEngine;
 using TinyJSON;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
-using System;
-using UnityEngine.Serialization;
 
 namespace Tweakificator
 {
@@ -82,11 +78,11 @@ namespace Tweakificator
 
             new Config(GUID)
                 .Group("Dump")
-                    .Entry(out forceDump, "forceDump", false, "Overwrite existing dump files.")
-                    .Entry(out dumpIcons, "dumpIcons", false, "Dump icon files. (very slow)")
+                    .Entry(out forceDump, "forceDump", false, true, "Overwrite existing dump files.")
+                    .Entry(out dumpIcons, "dumpIcons", false, true, "Dump icon files. (very slow)")
                 .EndGroup()
                 .Group("Log")
-                    .Entry(out verbose, "verbose", false, "Log extra information.")
+                    .Entry(out verbose, "verbose", false, true, "Log extra information.")
                 .EndGroup()
                 .Load()
                 .Save();
@@ -219,7 +215,7 @@ namespace Tweakificator
             public static void onLoadItemTemplate(ItemTemplate __instance)
             {
                 hasLoaded_items = true;
-                log.LogFormat("onLoadItemTemplate: {0}", __instance.name);
+                //log.LogFormat("onLoadItemTemplate: {0}", __instance.name);
 
                 var path = Path.Combine(itemsDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -253,7 +249,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadElementTemplate(ElementTemplate __instance)
             {
-                log.LogFormat("onLoadElementTemplate: {0}", __instance.name);
+                //log.LogFormat("onLoadElementTemplate: {0}", __instance.name);
 
                 var path = Path.Combine(elementsDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -287,7 +283,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadRecipe(CraftingRecipe __instance)
             {
-                log.LogFormat("onLoadRecipe: {0}", __instance.name);
+                //log.LogFormat("onLoadRecipe: {0}", __instance.name);
 
                 var path = Path.Combine(recipesDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -321,7 +317,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
             {
-                log.LogFormat("onLoadBuildableObjectTemplate: {0}", __instance.name);
+                //log.LogFormat("onLoadBuildableObjectTemplate: {0}", __instance.name);
 
                 var path = Path.Combine(buildingsDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -355,7 +351,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadResearchTemplate(ResearchTemplate __instance)
             {
-                log.LogFormat("onLoadResearchTemplate: {0}", __instance.name);
+                //log.LogFormat("onLoadResearchTemplate: {0}", __instance.name);
 
                 var path = Path.Combine(researchDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -389,7 +385,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadBiomeTemplate(BiomeTemplate __instance)
             {
-                log.LogFormat("onLoadBiomeTemplate: {0}", __instance.name);
+                //log.LogFormat("onLoadBiomeTemplate: {0}", __instance.name);
 
                 var path = Path.Combine(biomeDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
@@ -423,7 +419,7 @@ namespace Tweakificator
             [HarmonyPrefix]
             public static void onLoadTerrainBlockType(TerrainBlockType __instance)
             {
-                log.LogFormat("onLoadTerrainBlockType: {0}", __instance.name);
+                //log.LogFormat("onLoadTerrainBlockType: {0}", __instance.name);
 
                 var path = Path.Combine(terrainBlocksDumpFolder, __instance.identifier + ".json");
                 if (forceDump.Get() || !File.Exists(path))
