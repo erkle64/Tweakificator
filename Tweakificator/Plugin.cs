@@ -35,6 +35,8 @@ namespace Tweakificator
         public static string itemsDumpFolder;
         public static string elementsDumpFolder;
         public static string recipesDumpFolder;
+        public static string recipeCategoriesDumpFolder;
+        public static string recipeCategoryRowsDumpFolder;
         public static string terrainBlocksDumpFolder;
         public static string buildingsDumpFolder;
         public static string researchDumpFolder;
@@ -50,6 +52,8 @@ namespace Tweakificator
         public static ProxyObject patchDataItemChanges = null;
         public static ProxyObject patchDataElementChanges = null;
         public static ProxyObject patchDataRecipeChanges = null;
+        public static ProxyObject patchDataRecipeCategoryChanges = null;
+        public static ProxyObject patchDataRecipeCategoryRowChanges = null;
         public static ProxyObject patchDataTerrainChanges = null;
         public static ProxyObject patchDataBuildingChanges = null;
         public static ProxyObject patchDataResearchChanges = null;
@@ -57,6 +61,8 @@ namespace Tweakificator
         public static ProxyObject patchDataItemAdditions = null;
         public static ProxyObject patchDataElementAdditions = null;
         public static ProxyObject patchDataRecipeAdditions = null;
+        public static ProxyObject patchDataRecipeCategoryAdditions = null;
+        public static ProxyObject patchDataRecipeCategoryRowAdditions = null;
         public static ProxyObject patchDataTerrainAdditions = null;
         public static ProxyObject patchDataBuildingAdditions = null;
         public static ProxyObject patchDataResearchAdditions = null;
@@ -75,6 +81,8 @@ namespace Tweakificator
             itemsDumpFolder = Path.Combine(dumpFolder, "Items");
             elementsDumpFolder = Path.Combine(dumpFolder, "Elements");
             recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
+            recipeCategoriesDumpFolder = Path.Combine(dumpFolder, "RecipeCategories");
+            recipeCategoryRowsDumpFolder = Path.Combine(dumpFolder, "RecipeCategoryRows");
             terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
             buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
             researchDumpFolder = Path.Combine(dumpFolder, "Research");
@@ -106,6 +114,8 @@ namespace Tweakificator
             if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
             if (!Directory.Exists(elementsDumpFolder)) Directory.CreateDirectory(elementsDumpFolder);
             if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
+            if (!Directory.Exists(recipeCategoriesDumpFolder)) Directory.CreateDirectory(recipeCategoriesDumpFolder);
+            if (!Directory.Exists(recipeCategoryRowsDumpFolder)) Directory.CreateDirectory(recipeCategoryRowsDumpFolder);
             if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
             if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
             if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
@@ -133,13 +143,17 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataItemChanges, "items");
             FetchChangesObject(ref patchDataElementChanges, "elements");
             FetchChangesObject(ref patchDataRecipeChanges, "recipes");
-            FetchChangesObject(ref patchDataTerrainChanges, "terrain");
+            FetchChangesObject(ref patchDataRecipeCategoryChanges, "recipes");
+            FetchChangesObject(ref patchDataRecipeCategoryRowChanges, "recipeCategories");
+            FetchChangesObject(ref patchDataTerrainChanges, "recipeCategoryRows");
             FetchChangesObject(ref patchDataResearchChanges, "research");
             FetchChangesObject(ref patchDataBiomeChanges, "biomes");
             FetchChangesObject(ref patchDataBuildingChanges, "buildings");
             FetchAdditionsObject(ref patchDataItemAdditions, "items");
             FetchAdditionsObject(ref patchDataElementAdditions, "elements");
             FetchAdditionsObject(ref patchDataRecipeAdditions, "recipes");
+            FetchAdditionsObject(ref patchDataRecipeCategoryAdditions, "recipeCategories");
+            FetchAdditionsObject(ref patchDataRecipeCategoryRowAdditions, "recipeCategoryRows");
             FetchAdditionsObject(ref patchDataTerrainAdditions, "terrain");
             FetchAdditionsObject(ref patchDataResearchAdditions, "research");
             FetchAdditionsObject(ref patchDataBiomeAdditions, "biomes");
@@ -390,6 +404,26 @@ namespace Tweakificator
                 ProcessOnLoad<RecipeDump, CraftingRecipe>(ref __instance, __instance.identifier, "recipe", patchDataRecipeChanges, recipesDumpFolder);
             }
 
+            [HarmonyPatch(typeof(CraftingRecipeCategory), nameof(CraftingRecipeCategory.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadRecipeCategory(CraftingRecipeCategory __instance)
+            {
+                if (hasRun_recipeCategories) return;
+                hasLoaded_recipeCategories = true;
+
+                ProcessOnLoad<RecipeCategoryDump, CraftingRecipeCategory>(ref __instance, __instance.identifier, "recipe category", patchDataRecipeCategoryChanges, recipeCategoriesDumpFolder);
+            }
+
+            [HarmonyPatch(typeof(CraftingRecipeRowGroup), nameof(CraftingRecipeRowGroup.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadRecipeCategoryRow(CraftingRecipeRowGroup __instance)
+            {
+                if (hasRun_recipeCategoryRows) return;
+                hasLoaded_recipeCategoryRows = true;
+
+                ProcessOnLoad<RecipeCategoryRowDump, CraftingRecipeRowGroup>(ref __instance, __instance.identifier, "recipe category row", patchDataRecipeCategoryRowChanges, recipeCategoryRowsDumpFolder);
+            }
+
             [HarmonyPatch(typeof(BuildableObjectTemplate), nameof(BuildableObjectTemplate.onLoad))]
             [HarmonyPrefix]
             public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
@@ -436,6 +470,10 @@ namespace Tweakificator
             private static bool hasRun_elements = false;
             private static bool hasLoaded_recipes = false;
             private static bool hasRun_recipes = false;
+            private static bool hasLoaded_recipeCategories = false;
+            private static bool hasRun_recipeCategories = false;
+            private static bool hasLoaded_recipeCategoryRows = false;
+            private static bool hasRun_recipeCategoryRows = false;
             private static bool hasLoaded_terrain = false;
             private static bool hasRun_terrain = false;
             private static bool hasLoaded_research = false;

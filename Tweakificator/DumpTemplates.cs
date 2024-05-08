@@ -100,6 +100,23 @@ namespace Tweakificator
         public string extraInfoTooltipText;
     }
 
+    public struct RecipeCategoryDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public string icon_identifier;
+        public string identifier_defaultRowGroup;
+    }
+
+    public struct RecipeCategoryRowDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public int sortingOrder;
+        public string identifier_category;
+    }
+
     public struct TerrainBlockDump
     {
         public string modIdentifier;
