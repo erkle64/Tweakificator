@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\expressive\Source\Expressive\Expressive.csproj" />
     <ProjectReference Include="..\TinyJSON\TinyJSON\TinyJSON.csproj" />
   </ItemGroup>
 
