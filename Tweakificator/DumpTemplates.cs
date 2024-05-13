@@ -605,4 +605,16 @@ namespace Tweakificator
         public EnvironmentEvent environmentEvent;
         public BiomeLayerTemplate biomeLayer;
     }
+
+    public struct BlastFurnaceModeDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public string icon_identifier;
+        public Dictionary<string, CraftingRecipeItemInputProxy> input_data;
+        public Dictionary<string, CraftingRecipeElementalInputProxy> output_data_elemental;
+        public CraftingRecipe.CraftingRecipeElementalInput waste_gas_data;
+        public string slagTemplateIdentifierForShutdown;
+    }
 }

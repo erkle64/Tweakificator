@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.0";
+            VERSION = "2.0.1";
 
         public static LogSource log;
 
@@ -41,6 +41,7 @@ namespace Tweakificator
         public static string buildingsDumpFolder;
         public static string researchDumpFolder;
         public static string biomeDumpFolder;
+        public static string blastFurnaceModeDumpFolder;
         public static string iconsDumpFolder;
         public static string tweaksFolder;
         public static string iconsFolder;
@@ -58,6 +59,7 @@ namespace Tweakificator
         public static ProxyObject patchDataBuildingChanges = null;
         public static ProxyObject patchDataResearchChanges = null;
         public static ProxyObject patchDataBiomeChanges = null;
+        public static ProxyObject patchDataBlastFurnaceModeChanges = null;
         public static ProxyObject patchDataItemAdditions = null;
         public static ProxyObject patchDataElementAdditions = null;
         public static ProxyObject patchDataRecipeAdditions = null;
@@ -67,6 +69,7 @@ namespace Tweakificator
         public static ProxyObject patchDataBuildingAdditions = null;
         public static ProxyObject patchDataResearchAdditions = null;
         public static ProxyObject patchDataBiomeAdditions = null;
+        public static ProxyObject patchDataBlastFurnaceModeAdditions = null;
 
         public static Dictionary<System.Type, JSON.PopulateOverride> populateOverrides = new Dictionary<System.Type, JSON.PopulateOverride>();
 
@@ -87,6 +90,7 @@ namespace Tweakificator
             buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
             researchDumpFolder = Path.Combine(dumpFolder, "Research");
             biomeDumpFolder = Path.Combine(dumpFolder, "Biomes");
+            blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "BlastFurnaceModes");
             iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
             tweaksFolder = Path.Combine(Path.GetFullPath("."), "tweaks");
             iconsFolder = Path.Combine(tweaksFolder, "icons");
@@ -120,6 +124,7 @@ namespace Tweakificator
             if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
             if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
             if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
+            if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
@@ -143,12 +148,13 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataItemChanges, "items");
             FetchChangesObject(ref patchDataElementChanges, "elements");
             FetchChangesObject(ref patchDataRecipeChanges, "recipes");
-            FetchChangesObject(ref patchDataRecipeCategoryChanges, "recipes");
-            FetchChangesObject(ref patchDataRecipeCategoryRowChanges, "recipeCategories");
-            FetchChangesObject(ref patchDataTerrainChanges, "recipeCategoryRows");
+            FetchChangesObject(ref patchDataRecipeCategoryChanges, "recipeCategories");
+            FetchChangesObject(ref patchDataRecipeCategoryRowChanges, "recipeCategoryRows");
+            FetchChangesObject(ref patchDataTerrainChanges, "terrain");
             FetchChangesObject(ref patchDataResearchChanges, "research");
             FetchChangesObject(ref patchDataBiomeChanges, "biomes");
             FetchChangesObject(ref patchDataBuildingChanges, "buildings");
+            FetchChangesObject(ref patchDataBlastFurnaceModeChanges, "blastFurnaceModes");
             FetchAdditionsObject(ref patchDataItemAdditions, "items");
             FetchAdditionsObject(ref patchDataElementAdditions, "elements");
             FetchAdditionsObject(ref patchDataRecipeAdditions, "recipes");
@@ -158,6 +164,7 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataResearchAdditions, "research");
             FetchAdditionsObject(ref patchDataBiomeAdditions, "biomes");
             FetchAdditionsObject(ref patchDataBuildingAdditions, "buildings");
+            FetchAdditionsObject(ref patchDataBlastFurnaceModeAdditions, "blastFurnaceModes");
 
             populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data) =>
             {
@@ -464,6 +471,16 @@ namespace Tweakificator
                 ProcessOnLoad<TerrainBlockDump, TerrainBlockType>(ref __instance, __instance.identifier, "terrain block", patchDataTerrainChanges, terrainBlocksDumpFolder);
             }
 
+            [HarmonyPatch(typeof(BlastFurnaceModeTemplate), nameof(BlastFurnaceModeTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadBlastFurnaceModeTemplate(BlastFurnaceModeTemplate __instance)
+            {
+                if (hasRun_blastFurnaceModes) return;
+                hasLoaded_blastFurnaceModes = true;
+
+                ProcessOnLoad<BlastFurnaceModeDump, BlastFurnaceModeTemplate>(ref __instance, __instance.identifier, "blast furnace mode", patchDataBlastFurnaceModeChanges, blastFurnaceModeDumpFolder);
+            }
+
             private static bool hasLoaded_items = false;
             private static bool hasRun_items = false;
             private static bool hasLoaded_elements = false;
@@ -482,6 +499,8 @@ namespace Tweakificator
             private static bool hasRun_biomes = false;
             private static bool hasLoaded_buildings = false;
             private static bool hasRun_buildings = false;
+            private static bool hasLoaded_blastFurnaceModes = false;
+            private static bool hasRun_blastFurnaceModes = false;
 
             class InitOnApplicationStartEnumerator : IEnumerable
             {
