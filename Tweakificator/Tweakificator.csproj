@@ -38,6 +38,9 @@
     <Reference Include="mscorlib">
       <HintPath>$(FoundryAssembliesPath)mscorlib.dll</HintPath>
     </Reference>
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(FoundryAssembliesPath)Sirenix.Serialization.dll</HintPath>
+    </Reference>
     <Reference Include="Unfoundry">
       <HintPath>$(FoundryModsPath)A_Unfoundry\Unfoundry.dll</HintPath>
     </Reference>

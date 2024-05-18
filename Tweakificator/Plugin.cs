@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.1";
+            VERSION = "2.0.2";
 
         public static LogSource log;
 
@@ -42,6 +42,8 @@ namespace Tweakificator
         public static string researchDumpFolder;
         public static string biomeDumpFolder;
         public static string blastFurnaceModeDumpFolder;
+        public static string assemblyLineObjectDumpFolder;
+        public static string reservoirDumpFolder;
         public static string iconsDumpFolder;
         public static string tweaksFolder;
         public static string iconsFolder;
@@ -60,6 +62,8 @@ namespace Tweakificator
         public static ProxyObject patchDataResearchChanges = null;
         public static ProxyObject patchDataBiomeChanges = null;
         public static ProxyObject patchDataBlastFurnaceModeChanges = null;
+        public static ProxyObject patchDataAssemblyLineObjectChanges = null;
+        public static ProxyObject patchDataReservoirChanges = null;
         public static ProxyObject patchDataItemAdditions = null;
         public static ProxyObject patchDataElementAdditions = null;
         public static ProxyObject patchDataRecipeAdditions = null;
@@ -70,6 +74,8 @@ namespace Tweakificator
         public static ProxyObject patchDataResearchAdditions = null;
         public static ProxyObject patchDataBiomeAdditions = null;
         public static ProxyObject patchDataBlastFurnaceModeAdditions = null;
+        public static ProxyObject patchDataAssemblyLineObjectAdditions = null;
+        public static ProxyObject patchDataReservoirAdditions = null;
 
         public static Dictionary<System.Type, JSON.PopulateOverride> populateOverrides = new Dictionary<System.Type, JSON.PopulateOverride>();
 
@@ -91,6 +97,8 @@ namespace Tweakificator
             researchDumpFolder = Path.Combine(dumpFolder, "Research");
             biomeDumpFolder = Path.Combine(dumpFolder, "Biomes");
             blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "BlastFurnaceModes");
+            assemblyLineObjectDumpFolder = Path.Combine(dumpFolder, "AssemblyLineObjects");
+            reservoirDumpFolder = Path.Combine(dumpFolder, "Reservoirs");
             iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
             tweaksFolder = Path.Combine(Path.GetFullPath("."), "tweaks");
             iconsFolder = Path.Combine(tweaksFolder, "icons");
@@ -125,6 +133,8 @@ namespace Tweakificator
             if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
             if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
             if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
+            if (!Directory.Exists(assemblyLineObjectDumpFolder)) Directory.CreateDirectory(assemblyLineObjectDumpFolder);
+            if (!Directory.Exists(reservoirDumpFolder)) Directory.CreateDirectory(reservoirDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
@@ -155,6 +165,8 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataBiomeChanges, "biomes");
             FetchChangesObject(ref patchDataBuildingChanges, "buildings");
             FetchChangesObject(ref patchDataBlastFurnaceModeChanges, "blastFurnaceModes");
+            FetchChangesObject(ref patchDataAssemblyLineObjectChanges, "assemblyLineObjects");
+            FetchChangesObject(ref patchDataReservoirChanges, "reservoirs");
             FetchAdditionsObject(ref patchDataItemAdditions, "items");
             FetchAdditionsObject(ref patchDataElementAdditions, "elements");
             FetchAdditionsObject(ref patchDataRecipeAdditions, "recipes");
@@ -165,6 +177,8 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataBiomeAdditions, "biomes");
             FetchAdditionsObject(ref patchDataBuildingAdditions, "buildings");
             FetchAdditionsObject(ref patchDataBlastFurnaceModeAdditions, "blastFurnaceModes");
+            FetchAdditionsObject(ref patchDataAssemblyLineObjectAdditions, "assemblyLineObjects");
+            FetchAdditionsObject(ref patchDataReservoirAdditions, "reservoirs");
 
             populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data) =>
             {
@@ -175,8 +189,10 @@ namespace Tweakificator
                 foreach (var kv in dataObject)
                 {
                     if (!(kv.Value is ProxyObject modeObject)) throw new System.Exception("Invalid item mode object");
-                    var mode = new ItemTemplate.ItemMode();
-                    mode.identifier = kv.Key;
+                    var mode = new ItemTemplate.ItemMode
+                    {
+                        identifier = kv.Key
+                    };
                     if (modeObject.TryGetValue("name", out var name)) mode.name = name;
                     else mode.name = kv.Key;
                     if (modeObject.TryGetValue("isDefault", out var isDefault)) mode.isDefault = isDefault?.ToBoolean(System.Globalization.CultureInfo.InvariantCulture) ?? false;
@@ -197,8 +213,10 @@ namespace Tweakificator
                 foreach (var kv in dataObject)
                 {
                     if (!(kv.Value is ProxyObject modeObject)) throw new System.Exception("Invalid research item object");
-                    var value = new ResearchTemplate.ResearchTemplateItemInput();
-                    value.identifier = kv.Key;
+                    var value = new ResearchTemplate.ResearchTemplateItemInput
+                    {
+                        identifier = kv.Key
+                    };
                     if (modeObject.TryGetValue("amount", out var amount)) value.amount = amount.ToInt32(System.Globalization.CultureInfo.InvariantCulture);
                     values[index++] = value;
                 }
@@ -215,8 +233,10 @@ namespace Tweakificator
                 foreach (var kv in dataObject)
                 {
                     if (!(kv.Value is ProxyObject modeObject)) throw new System.Exception("Invalid crafing recipe item object");
-                    var value = new CraftingRecipe.CraftingRecipeItemInput();
-                    value.identifier = kv.Key;
+                    var value = new CraftingRecipe.CraftingRecipeItemInput
+                    {
+                        identifier = kv.Key
+                    };
                     if (modeObject.TryGetValue("amount", out var amount)) value.amount = amount.ToInt32(System.Globalization.CultureInfo.InvariantCulture);
                     if (modeObject.TryGetValue("percentage_str", out var percentage_str)) value.percentage_str = percentage_str.ToString();
                     values[index++] = value;
@@ -234,8 +254,10 @@ namespace Tweakificator
                 foreach (var kv in dataObject)
                 {
                     if (!(kv.Value is ProxyObject modeObject)) throw new System.Exception("Invalid crafing recipe element object");
-                    var value = new CraftingRecipe.CraftingRecipeElementalInput();
-                    value.identifier = kv.Key;
+                    var value = new CraftingRecipe.CraftingRecipeElementalInput
+                    {
+                        identifier = kv.Key
+                    };
                     if (modeObject.TryGetValue("amount_str", out var amount_str)) value.amount_str = amount_str.ToString();
                     values[index++] = value;
                 }
@@ -481,6 +503,24 @@ namespace Tweakificator
                 ProcessOnLoad<BlastFurnaceModeDump, BlastFurnaceModeTemplate>(ref __instance, __instance.identifier, "blast furnace mode", patchDataBlastFurnaceModeChanges, blastFurnaceModeDumpFolder);
             }
 
+            [HarmonyPatch(typeof(AssemblyLineObjectTemplate), nameof(AssemblyLineObjectTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadAssemblyLineObjectTemplate(AssemblyLineObjectTemplate __instance)
+            {
+                if (hasRun_assemblyLineObjects) return;
+                hasLoaded_assemblyLineObjects = true;
+                ProcessOnLoad<AssemblyLineObjectDump, AssemblyLineObjectTemplate>(ref __instance, __instance.identifier, "assembly line object", patchDataAssemblyLineObjectChanges, assemblyLineObjectDumpFolder);
+            }
+
+            [HarmonyPatch(typeof(ReservoirTemplate), nameof(ReservoirTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadReservoirTemplate(ReservoirTemplate __instance)
+            {
+                if (hasRun_reservoirs) return;
+                hasLoaded_reservoirs = true;
+                ProcessOnLoad<ReservoirDump, ReservoirTemplate>(ref __instance, __instance.identifier, "reservoir", patchDataReservoirChanges, reservoirDumpFolder);
+            }
+
             private static bool hasLoaded_items = false;
             private static bool hasRun_items = false;
             private static bool hasLoaded_elements = false;
@@ -501,6 +541,10 @@ namespace Tweakificator
             private static bool hasRun_buildings = false;
             private static bool hasLoaded_blastFurnaceModes = false;
             private static bool hasRun_blastFurnaceModes = false;
+            private static bool hasLoaded_assemblyLineObjects = false;
+            private static bool hasRun_assemblyLineObjects = false;
+            private static bool hasLoaded_reservoirs = false;
+            private static bool hasRun_reservoirs = false;
 
             class InitOnApplicationStartEnumerator : IEnumerable
             {
@@ -559,6 +603,20 @@ namespace Tweakificator
                             hasRun_elements = true;
 
                             ProcessElementAdditions();
+                        }
+
+                        if (!hasRun_recipeCategories && hasLoaded_recipeCategories)
+                        {
+                            hasRun_recipeCategories = true;
+
+                            ProcessRecipeCategoryAdditions();
+                        }
+
+                        if (!hasRun_recipeCategoryRows && hasLoaded_recipeCategoryRows)
+                        {
+                            hasRun_recipeCategoryRows = true;
+
+                            ProcessRecipeCategoryRowAdditions();
                         }
 
                         yield return enumerated;
@@ -821,6 +879,96 @@ namespace Tweakificator
                     else
                     {
                         instance = ScriptableObject.CreateInstance<CraftingRecipe>();
+                    }
+
+                    instance.identifier = entry.Key;
+                    entry.Value.Populate(ref instance, populateOverrides);
+                    AssetManager.registerAsset(instance, true);
+                    instance.onLoad();
+                }
+            }
+        }
+
+        private static void ProcessRecipeCategoryAdditions()
+        {
+            if (patchDataRecipeCategoryAdditions != null)
+            {
+                var recipeCategoryTemplates = ItemTemplateManager.getCraftingRecipeCategoryDictionary();
+                foreach (var entry in patchDataRecipeCategoryAdditions)
+                {
+                    if (!(entry.Value is ProxyObject source))
+                    {
+                        throw new System.Exception("Invalid recipe category:\r\n" + entry.Value.ToString());
+                    }
+
+                    CraftingRecipeCategory template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source["__template"].ToString();
+                        var templateHash = CraftingRecipeCategory.generateStringHash(templateIdentifier);
+                        if (!recipeCategoryTemplates.TryGetValue(templateHash, out template))
+                        {
+                            log.LogError(string.Format("Template recipe {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (verbose.Get()) log.Log(string.Format("Adding recipe category {0}", entry.Key));
+
+                    CraftingRecipeCategory instance;
+                    if (template != null)
+                    {
+                        if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
+                        instance = Object.Instantiate(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<CraftingRecipeCategory>();
+                    }
+
+                    instance.identifier = entry.Key;
+                    entry.Value.Populate(ref instance, populateOverrides);
+                    AssetManager.registerAsset(instance, true);
+                    instance.onLoad();
+                }
+            }
+        }
+
+        private static void ProcessRecipeCategoryRowAdditions()
+        {
+            if (patchDataRecipeCategoryRowAdditions != null)
+            {
+                var recipeCategoryRowTemplates = typeof(ItemTemplateManager)
+                    .GetField("dict_craftingRecipeRowGroups", BindingFlags.Static | BindingFlags.NonPublic)
+                    .GetValue(null) as Dictionary<ulong, CraftingRecipeRowGroup>;
+                foreach (var entry in patchDataRecipeCategoryRowAdditions)
+                {
+                    if (!(entry.Value is ProxyObject source))
+                    {
+                        throw new System.Exception("Invalid recipe category row:\r\n" + entry.Value.ToString());
+                    }
+
+                    CraftingRecipeRowGroup template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source["__template"].ToString();
+                        var templateHash = CraftingRecipeRowGroup.generateStringHash(templateIdentifier);
+                        if (!recipeCategoryRowTemplates.TryGetValue(templateHash, out template))
+                        {
+                            log.LogError(string.Format("Template recipe {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (verbose.Get()) log.Log(string.Format("Adding recipe category row {0}", entry.Key));
+
+                    CraftingRecipeRowGroup instance;
+                    if (template != null)
+                    {
+                        if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
+                        instance = Object.Instantiate(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<CraftingRecipeRowGroup>();
                     }
 
                     instance.identifier = entry.Key;

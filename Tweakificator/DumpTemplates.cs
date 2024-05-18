@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Sirenix.Serialization;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Tweakificator
@@ -616,5 +618,42 @@ namespace Tweakificator
         public Dictionary<string, CraftingRecipeElementalInputProxy> output_data_elemental;
         public CraftingRecipe.CraftingRecipeElementalInput waste_gas_data;
         public string slagTemplateIdentifierForShutdown;
+    }
+
+    public struct AssemblyLineObjectDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public bool includeInBuild;
+        public string icon_identifier;
+        public string description;
+        public AssemblyLineObjectTemplate.AssemblyLineObjectPart[] objectParts;
+        public AssemblyLineObjectTemplate.AssemblyStage[] stages;
+        public Vector3 boxColliderSize;
+        public Vector3 boxColliderOffset;
+    }
+
+    public struct ReservoirDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public string terrainBlockIdentifier;
+        public string elementIdentifier;
+        public Vector3IntProxy minSize;
+        public Vector3IntProxy maxSize;
+        public uint maxHeight;
+        public uint minHeight;
+        public string minContent_str;
+        public string maxContent_str;
+        public string contentIncreasePerTile_str;
+        public Color mapColor;
+        public Sprite icon;
+        public TerrainBlockType.OreSpawnFlags oreSpawnFlags;
+        public uint chancePerChunk_ground;
+        public uint chancePerChunk_surface;
+        public int ore_startChunkX;
+        public int ore_startChunkZ;
     }
 }
