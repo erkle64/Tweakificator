@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.3";
+            VERSION = "2.0.4";
 
         public static LogSource log;
 
