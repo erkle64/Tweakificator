@@ -191,6 +191,7 @@ namespace Tweakificator
         public int dragModeOrientationSlope_yOffsetPerInstance;
         public bool dragModeOrientationSlope_allowSideways;
         public BuildableObjectTemplate.DragAxis dragModeLine_dragAxis;
+        public float dragModeLine_dragPlaneMultipler;
         public float dragModeLine_nonUnlockedYCorrection;
         public BuildableObjectTemplate.DragAxis dragModePlane_dragAxis01;
         public BuildableObjectTemplate.DragAxis dragModePlane_dragAxis02;
@@ -223,12 +224,12 @@ namespace Tweakificator
         public string modularBuildingModule_descriptionName;
         public uint modularBuildingModule_amountItemCost;
         public string modularBuildingModule_unlockedByResearchTemplateIdentifier;
-        public BuildableObjectTemplate.ModularBuildingConnectionNode[] modularBuildingConnectionNodes;
-        public BuildableObjectTemplate.ModularBuildingModuleLimit[] modularBuildingLimits;
+        public ModularBuildingConnectionNode[] modularBuildingConnectionNodes;
+        public ModularBuildingModuleLimit[] modularBuildingLimits;
         public bool modularBuilding_forceRequirePCM;
         public Vector3IntProxy modularBuildingLocalSearchAnchor;
-        public BuildableObjectTemplate.ModularEntityItemCosts[] modularBuildingItemCost;
-        public BuildableObjectTemplate.ModularEntityItemCosts[] modularBuildingRubble;
+        public ModularEntityItemCosts[] modularBuildingItemCost;
+        public ModularEntityItemCosts[] modularBuildingRubble;
         public bool modularBuilding_hasNoEnabledState;
         public BuildableObjectTemplate.PowerComponentType powerComponentType;
         public BuildableObjectTemplate.BuildableObjectPowerSubType powerSubType;
@@ -256,22 +257,22 @@ namespace Tweakificator
         public bool spawnFlyingDebrisWhenExploding;
         public BuildableObjectTemplate.ItemBufferUIRow[] itemBufferSlotMap;
         public bool hasRailings;
-        public WalkwayMeshEntry walkway_mesh_noRailings;
-        public WalkwayMeshEntry walkway_mesh_xPos;
-        public WalkwayMeshEntry walkway_mesh_xNeg;
-        public WalkwayMeshEntry walkway_mesh_zPos;
-        public WalkwayMeshEntry walkway_mesh_zNeg;
-        public WalkwayMeshEntry walkway_mesh_xPos_xNeg;
-        public WalkwayMeshEntry walkway_mesh_z_Pos_zNeg;
-        public WalkwayMeshEntry walkway_mesh_xPos_zPos;
-        public WalkwayMeshEntry walkway_mesh_xPos_zNeg;
-        public WalkwayMeshEntry walkway_mesh_xNeg_zPos;
-        public WalkwayMeshEntry walkway_mesh_xNeg_zNeg;
-        public WalkwayMeshEntry walkway_mesh_xPos_zNeg_xNeg;
-        public WalkwayMeshEntry walkway_mesh_zPos_xPos_zNeg;
-        public WalkwayMeshEntry walkway_mesh_xPos_zPos_xNeg;
-        public WalkwayMeshEntry walkway_mesh_zPos_xNeg_zNeg;
-        public WalkwayMeshEntry walkway_mesh_allRailings;
+        //public WalkwayMeshEntry walkway_mesh_noRailings;
+        //public WalkwayMeshEntry walkway_mesh_xPos;
+        //public WalkwayMeshEntry walkway_mesh_xNeg;
+        //public WalkwayMeshEntry walkway_mesh_zPos;
+        //public WalkwayMeshEntry walkway_mesh_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_xPos_xNeg;
+        //public WalkwayMeshEntry walkway_mesh_z_Pos_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_xPos_zPos;
+        //public WalkwayMeshEntry walkway_mesh_xPos_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_xNeg_zPos;
+        //public WalkwayMeshEntry walkway_mesh_xNeg_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_xPos_zNeg_xNeg;
+        //public WalkwayMeshEntry walkway_mesh_zPos_xPos_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_xPos_zPos_xNeg;
+        //public WalkwayMeshEntry walkway_mesh_zPos_xNeg_zNeg;
+        //public WalkwayMeshEntry walkway_mesh_allRailings;
         public bool hasIntraBuildingWalkways;
         public BuildableObjectTemplate.IntraBuildingWalkwayData[] intraBuildingWalkwayData;
         public bool hasAdjacentWalkwayOverrides;
@@ -284,7 +285,7 @@ namespace Tweakificator
         public bool hasFluidBoxManager;
         public bool fbm_sendUpdateEventsForRegularFluidBoxes;
         public BuildableObjectTemplate.FluidBoxData[] fbm_fluidBoxes;
-        public BuildableObjectTemplate.IOFluidBoxData[] fbm_ioFluidBoxes;
+        public IOFluidBoxData[] fbm_ioFluidBoxes;
         public int droneMiner_oreSearchRadius;
         public int droneMiner_itemCapacityPerDrone;
         public string droneMiner_miningSpeed_str;
@@ -348,18 +349,18 @@ namespace Tweakificator
         public string solarPanel_outputMax_str;
         public string solarPanel_outputMin_str;
         public bool solarPanel_rotatingPart;
-        public BuildableObjectTemplate.WorldDecorMiningYield[] worldDecor_miningYield;
+        public WorldDecorMiningYield[] worldDecor_miningYield;
         public float worldDecor_miningTimeSec;
         //public AudioClip worldDecor_audioClip_afterHarvesting;
         public bool worldDecor_isDebris;
-        public BuildableObjectTemplate.WorldDecorSpecialDrop[] worldDecor_specialDrops;
+        public WorldDecorSpecialDrop[] worldDecor_specialDrops;
         public Color worldDecor_scratchColor;
         public bool worldDecor_canGrow;
         public int worldDecor_growTimeSec;
         public float worldDecor_growStartScale;
         public string worldDecor_plantSeedIdentifier;
         public string[] worldDecor_allowedGrowableTerrainBlocks;
-        public BuildableObjectTemplate.SuperBuildingLevel[] superBuilding_levels;
+        public SuperBuildingLevel[] superBuilding_levels;
         public string[] superBuilding_researchUnlocks_str;
         public Vector3IntProxy[] superBuilding_allowedLoaderPositions;
         public int superBuilding_loaderIndicator_rotY;
@@ -413,7 +414,7 @@ namespace Tweakificator
         public string resourceConverter_powerConsumption_kjPerSec;
         public CraftingRecipe.CraftingRecipeElementalInput[] resourceConverter_input_elemental;
         public CraftingRecipe.CraftingRecipeElementalInput[] resourceConverter_output_elemental;
-        public BuildableObjectTemplate.ResourceConverterModuleSpeedBonus[] resourceConverter_speedBonusModules;
+        public ResourceConverterModuleSpeedBonus[] resourceConverter_speedBonusModules;
         public bool resourceConverter_hasAdjacencyBonus;
         public string resourceConverter_powerDecreasePerAdjacentResourceConverter;
         public byte resourceConverter_adjacencyBonusAxis;
@@ -430,7 +431,7 @@ namespace Tweakificator
         public int trainLoadingStation_itemType;
         public Vector3IntProxy trainLoadingStation_trackSearchOffset01;
         public Vector3IntProxy trainLoadingStation_trackSearchOffset02;
-        public BuildableObjectTemplate.TrainLoadingStationCompatibleTrackTemplate[] trainLoadingStation_compatibleTrackTemplates;
+        //public TrainLoadingStationCompatibleTrackTemplate[] trainLoadingStation_compatibleTrackTemplates;
         public uint al_start_slotWidth;
         public uint al_start_speedInSlotsPerTick;
         public Vector3IntProxy al_start_localOffset_outputOrigin;
@@ -655,5 +656,88 @@ namespace Tweakificator
         public uint chancePerChunk_surface;
         public int ore_startChunkX;
         public int ore_startChunkZ;
+    }
+
+    public struct ModularBuildingConnectionNode
+    {
+        public ModularBuildingConnectionNodeData[] nodeData;
+        public Vector3 attachmentPointPreviewPosition;
+    }
+
+    public struct ModularBuildingConnectionNodeData
+    {
+        public string bot_identifier;
+        public BuildableObjectTemplate.OffsetAndOrientationData positionData;
+    }
+
+    public struct ResourceConverterModuleSpeedBonus
+    {
+        public string bot_identifier;
+        public string speedBonus;
+        public int numberOfIgnoredModules;
+    }
+
+    public struct WorldDecorMiningYield
+    {
+        public string it_identifier;
+        public uint amount;
+    }
+
+    public struct WorldDecorSpecialDrop
+    {
+        public string it_identifier;
+        public uint amount;
+        public string dropChancePercentage_str;
+    }
+
+    public struct ModularBuildingModuleLimit
+    {
+        public string bot_identifier;
+        public int minAmount;
+        public int maxAmount;
+    }
+
+    public struct ModularEntityItemCosts
+    {
+        public string itemTemplateIdentifier;
+        public uint itemCost;
+    }
+
+    public struct IOFluidBoxData
+    {
+        public struct IOFluidBoxConnectionData
+        {
+            public string groupIdentifier;
+
+            public Vector3Int localOffset_origin;
+
+            public Vector3Int localOffset_target;
+        }
+
+        public BuildableObjectTemplate.IOFluidBoxData.IOFBType type;
+
+        public BuildableObjectTemplate.IOFluidBoxData.IOFBTransferSpeedType transferSpeedType;
+
+        public bool isInput;
+
+        public float capacity_l;
+
+        public float transferRatePerSecond_l;
+
+        public string fixedElementTemplateIdentifier;
+
+        public IOFluidBoxConnectionData[] connectors;
+    }
+
+    public struct SuperBuildingLevel
+    {
+        public SuperBuildingRequirement[] requirements;
+        public int constructionTimeSec;
+    }
+
+    public struct SuperBuildingRequirement
+    {
+        public string identifier;
+        public uint amount;
     }
 }

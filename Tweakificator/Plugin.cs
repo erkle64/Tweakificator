@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.2";
+            VERSION = "2.0.3";
 
         public static LogSource log;
 
@@ -1087,18 +1087,21 @@ namespace Tweakificator
 
         public static D gatherDump<D, T>(T template) where D : new()
         {
-            var dump = (System.Object)new D();
+            var dump = (object)new D();
             foreach (var field in typeof(D).GetFields())
             {
-                var templateField = template.GetType().GetField(field.Name);
-                if (templateField != null)
+                if (!field.IsStatic && field.IsPublic && !field.IsNotSerialized)
                 {
-                    var value = gatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
-                    field.SetValue(dump, value);
-                }
-                else
-                {
-                    log.LogError(string.Format("Failed to dump {0}", field.Name));
+                    var templateField = template.GetType().GetField(field.Name);
+                    if (templateField != null)
+                    {
+                        var value = gatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
+                        field.SetValue(dump, value);
+                    }
+                    else
+                    {
+                        log.LogError(string.Format("Failed to dump {0}", field.Name));
+                    }
                 }
             }
             return (D)dump;
@@ -1180,7 +1183,7 @@ namespace Tweakificator
                     .Invoke(null, new object[] { template });
                 return dumpValues;
             }
-            else if (dumpType.GetConstructor(System.Type.EmptyTypes) != null && templateType.Assembly == typeof(ItemTemplate).Assembly && !typeof(Object).IsAssignableFrom(templateType))
+            else if ((dumpType.GetConstructor(System.Type.EmptyTypes) != null || dumpType.IsValueType && dumpType != templateType) && templateType.Assembly == typeof(ItemTemplate).Assembly && !typeof(Object).IsAssignableFrom(templateType))
             {
                 return typeof(Plugin).GetMethod("gatherDump")
                     .MakeGenericMethod(dumpType, templateType)
