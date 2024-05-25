@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.4";
+            VERSION = "2.0.5";
 
         public static LogSource log;
 
@@ -140,7 +140,7 @@ namespace Tweakificator
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
             if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
 
-            foreach (var path in Directory.GetFiles(tweaksFolder, "*.json"))
+            foreach (var path in Directory.GetFiles(tweaksFolder, "*.json", SearchOption.AllDirectories))
             {
                 var patch = JSON.Load(File.ReadAllText(path));
                 if (patchData == null)
@@ -309,6 +309,47 @@ namespace Tweakificator
         [HarmonyPatch]
         public static class Patch
         {
+            //private const int terrainBlockCount = GameRoot.BUILDING_PART_ARRAY_IDX_START - 1;
+            //private static bool done = false;
+            //[HarmonyPatch(typeof(GameRoot), "Update")]
+            //[HarmonyPostfix]
+            //public static void GameRootUpdate()
+            //{
+            //    if (!GameRoot.IsGameInitDone) return;
+            //    if (done) return;
+            //    done = true;
+            //    log.Log("Dumping terrain.");
+
+            //    var terrainCount = GameRoot.TerrainCount;
+            //    var buildingPartCount = GameRoot.BuildingPartCount;
+            //    log.Log($"{terrainCount} {buildingPartCount}");
+
+            //    var sb = new StringBuilder();
+            //    sb.AppendLine($"Terrain Count: {terrainCount}");
+            //    sb.AppendLine($"Building Part Count: {buildingPartCount}");
+            //    for (int i = 0; i < terrainCount; i++)
+            //    {
+            //        log.Log($"{i}");
+            //        var template = ItemTemplateManager.getTerrainBlockTemplateByByteIdx((byte)i);
+            //        if (template != null)
+            //        {
+            //            log.Log($"{template.name}");
+            //            sb.AppendLine($"\"{i}\": \"{template.name}\",");
+            //        }
+            //    }
+            //    for (int i = GameRoot.BUILDING_PART_ARRAY_IDX_START; i < buildingPartCount; i++)
+            //    {
+            //        log.Log($"{i}");
+            //        var template = ItemTemplateManager.getBuildingPartTemplate(GameRoot.BuildingPartIdxLookupTable.table[i]);
+            //        if (template != null)
+            //        {
+            //            log.Log($"{template.name}");
+            //            sb.AppendLine($"\"{i}\": \"{template.name}\",");
+            //        }
+            //    }
+            //    File.WriteAllText("terrain.txt", sb.ToString());
+            //}
+
             [HarmonyPatch(typeof(TextureStreamingProcessor), nameof(TextureStreamingProcessor.OnAddedToManager))]
             [HarmonyPostfix]
             public static void TextureStreamingProcessorOnAddedToManager(TextureStreamingProcessor __instance)
@@ -410,7 +451,40 @@ namespace Tweakificator
                 if (hasRun_items) return;
                 hasLoaded_items = true;
 
-                ProcessOnLoad<ItemDump, ItemTemplate>(ref __instance, __instance.identifier, "item", patchDataItemChanges, itemsDumpFolder);
+                //if (!string.IsNullOrEmpty(__instance.icon_identifier))
+                //{
+                //    var sprite = ResourceDB.getIcon(__instance.icon_identifier, 96);
+                //    if (sprite != null)
+                //    {
+                //        var hash = ItemTemplate.generateStringHash(__instance.identifier);
+                //        var path = Path.Combine(iconsDumpFolder, "web", $"{(hash >> 32) & 0xFFFFFFFFUL}-{hash & 0xFFFFFFFFUL}.png");
+                //        if (!File.Exists(path))
+                //        {
+                //            var texture = duplicateTexture(sprite.texture);
+
+                //            var croppedTexture = new Texture2D(Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), TextureFormat.RGBA32, false);
+                //            var pixels = texture.GetPixels(Mathf.FloorToInt(sprite.textureRect.x), Mathf.FloorToInt(sprite.textureRect.y), Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), 0);
+                //            croppedTexture.SetPixels(pixels);
+                //            croppedTexture.Apply();
+                //            var bytes = croppedTexture.EncodeToPNG();
+                //            File.WriteAllBytes(path, bytes);
+                //            Object.Destroy(croppedTexture);
+                //            System.GC.Collect();
+                //        }
+                //    }
+                //    else
+                //    {
+                //        log.LogWarning($"Icon not found: {__instance.identifier}");
+                //    }
+                //}
+
+                ProcessOnLoad<ItemDump, ItemTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "item",
+                    patchDataItemChanges,
+                    itemsDumpFolder,
+                    ApplyItemTextures);
             }
 
             [HarmonyPatch(typeof(ElementTemplate), nameof(ElementTemplate.onLoad))]
@@ -420,7 +494,12 @@ namespace Tweakificator
                 if (hasRun_elements) return;
                 hasLoaded_elements = true;
 
-                ProcessOnLoad<ElementDump, ElementTemplate>(ref __instance, __instance.identifier, "element", patchDataElementChanges, elementsDumpFolder);
+                ProcessOnLoad<ElementDump, ElementTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "element",
+                    patchDataElementChanges,
+                    elementsDumpFolder);
             }
 
             [HarmonyPatch(typeof(CraftingRecipe), nameof(CraftingRecipe.onLoad))]
@@ -430,7 +509,12 @@ namespace Tweakificator
                 if (hasRun_recipes) return;
                 hasLoaded_recipes = true;
 
-                ProcessOnLoad<RecipeDump, CraftingRecipe>(ref __instance, __instance.identifier, "recipe", patchDataRecipeChanges, recipesDumpFolder);
+                ProcessOnLoad<RecipeDump, CraftingRecipe>(
+                    ref __instance,
+                    __instance.identifier,
+                    "recipe",
+                    patchDataRecipeChanges,
+                    recipesDumpFolder);
             }
 
             [HarmonyPatch(typeof(CraftingRecipeCategory), nameof(CraftingRecipeCategory.onLoad))]
@@ -440,7 +524,12 @@ namespace Tweakificator
                 if (hasRun_recipeCategories) return;
                 hasLoaded_recipeCategories = true;
 
-                ProcessOnLoad<RecipeCategoryDump, CraftingRecipeCategory>(ref __instance, __instance.identifier, "recipe category", patchDataRecipeCategoryChanges, recipeCategoriesDumpFolder);
+                ProcessOnLoad<RecipeCategoryDump, CraftingRecipeCategory>(
+                    ref __instance,
+                    __instance.identifier,
+                    "recipe category",
+                    patchDataRecipeCategoryChanges,
+                    recipeCategoriesDumpFolder);
             }
 
             [HarmonyPatch(typeof(CraftingRecipeRowGroup), nameof(CraftingRecipeRowGroup.onLoad))]
@@ -450,7 +539,12 @@ namespace Tweakificator
                 if (hasRun_recipeCategoryRows) return;
                 hasLoaded_recipeCategoryRows = true;
 
-                ProcessOnLoad<RecipeCategoryRowDump, CraftingRecipeRowGroup>(ref __instance, __instance.identifier, "recipe category row", patchDataRecipeCategoryRowChanges, recipeCategoryRowsDumpFolder);
+                ProcessOnLoad<RecipeCategoryRowDump, CraftingRecipeRowGroup>(
+                    ref __instance,
+                    __instance.identifier,
+                    "recipe category row",
+                    patchDataRecipeCategoryRowChanges,
+                    recipeCategoryRowsDumpFolder);
             }
 
             [HarmonyPatch(typeof(BuildableObjectTemplate), nameof(BuildableObjectTemplate.onLoad))]
@@ -460,7 +554,13 @@ namespace Tweakificator
                 if (hasRun_buildings) return;
                 hasLoaded_buildings = true;
 
-                ProcessOnLoad<BuildableObjectDump, BuildableObjectTemplate>(ref __instance, __instance.identifier, "building", patchDataBuildingChanges, buildingsDumpFolder);
+                ProcessOnLoad<BuildableObjectDump, BuildableObjectTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "building",
+                    patchDataBuildingChanges,
+                    buildingsDumpFolder,
+                    ApplyBuildingTextures);
             }
 
             [HarmonyPatch(typeof(ResearchTemplate), nameof(ResearchTemplate.onLoad))]
@@ -470,7 +570,12 @@ namespace Tweakificator
                 if (hasRun_research) return;
                 hasLoaded_research = true;
 
-                ProcessOnLoad<ResearchDump, ResearchTemplate>(ref __instance, __instance.identifier, "research", patchDataResearchChanges, researchDumpFolder);
+                ProcessOnLoad<ResearchDump, ResearchTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "research",
+                    patchDataResearchChanges,
+                    researchDumpFolder);
             }
 
             [HarmonyPatch(typeof(BiomeTemplate), nameof(BiomeTemplate.onLoad))]
@@ -480,7 +585,12 @@ namespace Tweakificator
                 if (hasRun_biomes) return;
                 hasLoaded_biomes = true;
 
-                ProcessOnLoad<BiomeDump, BiomeTemplate>(ref __instance, __instance.identifier, "biome", patchDataBiomeChanges, biomeDumpFolder);
+                ProcessOnLoad<BiomeDump, BiomeTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "biome",
+                    patchDataBiomeChanges,
+                    biomeDumpFolder);
             }
 
             [HarmonyPatch(typeof(TerrainBlockType), nameof(TerrainBlockType.onLoad))]
@@ -490,7 +600,12 @@ namespace Tweakificator
                 if (hasRun_terrain) return;
                 hasLoaded_terrain = true;
 
-                ProcessOnLoad<TerrainBlockDump, TerrainBlockType>(ref __instance, __instance.identifier, "terrain block", patchDataTerrainChanges, terrainBlocksDumpFolder);
+                ProcessOnLoad<TerrainBlockDump, TerrainBlockType>(
+                    ref __instance,
+                    __instance.identifier,
+                    "terrain block",
+                    patchDataTerrainChanges,
+                    terrainBlocksDumpFolder);
             }
 
             [HarmonyPatch(typeof(BlastFurnaceModeTemplate), nameof(BlastFurnaceModeTemplate.onLoad))]
@@ -500,7 +615,12 @@ namespace Tweakificator
                 if (hasRun_blastFurnaceModes) return;
                 hasLoaded_blastFurnaceModes = true;
 
-                ProcessOnLoad<BlastFurnaceModeDump, BlastFurnaceModeTemplate>(ref __instance, __instance.identifier, "blast furnace mode", patchDataBlastFurnaceModeChanges, blastFurnaceModeDumpFolder);
+                ProcessOnLoad<BlastFurnaceModeDump, BlastFurnaceModeTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "blast furnace mode",
+                    patchDataBlastFurnaceModeChanges,
+                    blastFurnaceModeDumpFolder);
             }
 
             [HarmonyPatch(typeof(AssemblyLineObjectTemplate), nameof(AssemblyLineObjectTemplate.onLoad))]
@@ -509,7 +629,12 @@ namespace Tweakificator
             {
                 if (hasRun_assemblyLineObjects) return;
                 hasLoaded_assemblyLineObjects = true;
-                ProcessOnLoad<AssemblyLineObjectDump, AssemblyLineObjectTemplate>(ref __instance, __instance.identifier, "assembly line object", patchDataAssemblyLineObjectChanges, assemblyLineObjectDumpFolder);
+                ProcessOnLoad<AssemblyLineObjectDump, AssemblyLineObjectTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "assembly line object",
+                    patchDataAssemblyLineObjectChanges,
+                    assemblyLineObjectDumpFolder);
             }
 
             [HarmonyPatch(typeof(ReservoirTemplate), nameof(ReservoirTemplate.onLoad))]
@@ -518,7 +643,12 @@ namespace Tweakificator
             {
                 if (hasRun_reservoirs) return;
                 hasLoaded_reservoirs = true;
-                ProcessOnLoad<ReservoirDump, ReservoirTemplate>(ref __instance, __instance.identifier, "reservoir", patchDataReservoirChanges, reservoirDumpFolder);
+                ProcessOnLoad<ReservoirDump, ReservoirTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "reservoir",
+                    patchDataReservoirChanges,
+                    reservoirDumpFolder);
             }
 
             private static bool hasLoaded_items = false;
@@ -634,12 +764,17 @@ namespace Tweakificator
             }
         }
 
-        private static void ProcessOnLoad<D, T>(ref T instance, string identifier, string displayName, ProxyObject patchDataChanges, string dumpFolderPath) where D : new()
+        private static void ProcessOnLoad<D, T>(ref T instance, string identifier, string displayName, ProxyObject patchDataChanges, string dumpFolderPath, System.Action<T, ProxyObject> callback = null) where D : new()
         {
             var path = Path.Combine(dumpFolderPath, identifier + ".json");
             if (forceDump.Get() || !File.Exists(path))
             {
-                File.WriteAllText(path, JSON.Dump(gatherDump<D, T>(instance), EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                D data = gatherDump<D, T>(instance);
+                //if (typeof(D) == typeof(BuildableObjectDump))
+                //{
+                //    typeof(BuildableObjectDump).GetField("id").SetValue(data, BuildableObjectTemplate.generateStringHash((string)typeof(BuildableObjectTemplate).GetField("identifier").GetValue(instance)));
+                //}
+                File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
             }
 
             if (patchDataChanges != null)
@@ -659,6 +794,8 @@ namespace Tweakificator
                             }
 
                             changes.Populate(ref instance, populateOverrides);
+
+                            callback?.Invoke(instance, changes);
                         }
                     }
                 }
@@ -709,6 +846,9 @@ namespace Tweakificator
 
                     instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides);
+
+                    ApplyItemTextures(instance, source);
+
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                     if (instance.flags.HasFlagNonAlloc(ItemTemplate.ItemTemplateFlags.SCIENCE_ITEM))
@@ -784,6 +924,9 @@ namespace Tweakificator
 
                     instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides);
+
+                    ApplyBuildingTextures(instance, source);
+
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                     if (instance.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
@@ -1071,6 +1214,155 @@ namespace Tweakificator
             }
         }
 
+        private static void ApplyItemTextures(ItemTemplate instance, ProxyObject source)
+        {
+            if (instance.meshMaterial != null && source.TryGetValue("__conveyorItemTexture", out var textureNameValue) && !string.IsNullOrEmpty(textureNameValue.ToString()))
+            {
+                var textureName = textureNameValue.ToString();
+                var material = new Material(instance.meshMaterial);
+                material.SetTexture("_MainTex", ResourceExt.FindTexture(textureName));
+                instance.meshMaterial = material;
+            }
+        }
+
+        private static void ApplyBuildingTextures(BuildableObjectTemplate building, ProxyObject source)
+        {
+            if (source.TryGetValue("__mainTexture", out var textureNameValue)
+                && !string.IsNullOrEmpty(textureNameValue.ToString()))
+            {
+                if (verbose.Get()) log.Log($"Adding texture {textureNameValue.ToString()} to {building.identifier}");
+                if (building.prefabOnDisk != null)
+                {
+                    ApplyTextureToPrefab(building.prefabOnDisk, 0, "_MainTex", textureNameValue.ToString(), ref building.conveyor_material, ref building.conveyor_material_inv);
+                }
+            }
+
+            if (source.TryGetValue("__conveyorTexture", out var conveyorTextureNameValue)
+                && !string.IsNullOrEmpty(conveyorTextureNameValue.ToString()))
+            {
+                if (verbose.Get()) log.Log($"Adding conveyor texture {conveyorTextureNameValue.ToString()} to {building.identifier}");
+                if (building.prefabOnDisk != null)
+                {
+                    ApplyTextureToPrefab(building.prefabOnDisk, 1, "_MainTex", conveyorTextureNameValue.ToString(), ref building.conveyor_material, ref building.conveyor_material_inv);
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        var subConveyor = building.prefabOnDisk.transform.Find($"convey_01_straight ({i})")?.gameObject;
+                        if (subConveyor != null)
+                        {
+                            ApplyTextureToPrefab(subConveyor, 1, "_MainTex", conveyorTextureNameValue.ToString(), ref building.conveyor_material, ref building.conveyor_material_inv);
+                        }
+                    }
+                }
+            }
+
+            if (source.TryGetValue("__conveyorEmissionTexture", out var conveyorEmissionTextureNameValue)
+                && !string.IsNullOrEmpty(conveyorEmissionTextureNameValue.ToString()))
+            {
+                if (verbose.Get()) log.Log($"Adding conveyor emission texture {conveyorEmissionTextureNameValue.ToString()} to {building.identifier}");
+                if (building.prefabOnDisk != null)
+                {
+                    ApplyTextureToPrefab(building.prefabOnDisk, 1, "_Emission", conveyorEmissionTextureNameValue.ToString(), ref building.conveyor_material, ref building.conveyor_material_inv);
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        var subConveyor = building.prefabOnDisk.transform.Find($"convey_01_straight ({i})")?.gameObject;
+                        if (subConveyor != null)
+                        {
+                            ApplyTextureToPrefab(subConveyor, 1, "_Emission", conveyorEmissionTextureNameValue.ToString(), ref building.conveyor_material, ref building.conveyor_material_inv);
+                        }
+                    }
+                }
+            }
+
+            if (source.TryGetValue("__conveyorEmissionColour", out var conveyorEmissionColourValue)
+                && conveyorEmissionColourValue is ProxyObject colourObject)
+            {
+                if (verbose.Get()) log.Log($"Adding conveyor emission colour to {building.identifier}");
+                var emissionColor = Color.white;
+                if (colourObject.TryGetValue("r", out var rValue)) emissionColor.r = rValue.ToSingle(System.Globalization.CultureInfo.InvariantCulture);
+                if (colourObject.TryGetValue("g", out var gValue)) emissionColor.g = gValue.ToSingle(System.Globalization.CultureInfo.InvariantCulture);
+                if (colourObject.TryGetValue("b", out var bValue)) emissionColor.b = bValue.ToSingle(System.Globalization.CultureInfo.InvariantCulture);
+                if (colourObject.TryGetValue("a", out var aValue)) emissionColor.a = aValue.ToSingle(System.Globalization.CultureInfo.InvariantCulture);
+                if (building.prefabOnDisk != null)
+                {
+                    ApplyColourToPrefab(building.prefabOnDisk, 1, "_EmissionColor", emissionColor, ref building.conveyor_material, ref building.conveyor_material_inv);
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        var subConveyor = building.prefabOnDisk.transform.Find($"convey_01_straight ({i})")?.gameObject;
+                        if (subConveyor != null)
+                        {
+                            ApplyColourToPrefab(subConveyor, 1, "_EmissionColor", emissionColor, ref building.conveyor_material, ref building.conveyor_material_inv);
+                        }
+                    }
+                }
+            }
+
+            if (source.TryGetValue("__conveyorTextureSpeed", out var conveyorTextureSpeed))
+            {
+                if (verbose.Get()) log.Log($"Adding conveyor texture speed to {building.identifier}");
+                var speed = conveyorTextureSpeed.ToSingle(System.Globalization.CultureInfo.InvariantCulture);
+                if (building.prefabOnDisk != null)
+                {
+                    ApplyVector4ToPrefab(building.prefabOnDisk, 1, "_Speed", new Vector4(0.0f, speed * 1.33333f / 160.0f, 0.0f, 0.0f), ref building.conveyor_material, ref building.conveyor_material_inv);
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        var subConveyor = building.prefabOnDisk.transform.Find($"convey_01_straight ({i})")?.gameObject;
+                        if (subConveyor != null)
+                        {
+                            ApplyVector4ToPrefab(subConveyor, 1, "_Speed", new Vector4(0.0f, speed * 1.33333f / 160.0f, 0.0f, 0.0f), ref building.conveyor_material, ref building.conveyor_material_inv);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void ApplyVector4ToPrefab(GameObject gameObject, int materialIndex, string propertyName, Vector4 value, ref Material conveyor_material, ref Material conveyor_material_inv)
+        {
+            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+            if (meshRenderer != null && meshRenderer.sharedMaterials.Length > materialIndex && meshRenderer.sharedMaterials[materialIndex] != null)
+            {
+                var material = new Material(meshRenderer.sharedMaterials[materialIndex]);
+                material.SetVector(propertyName, value);
+                var sharedMaterials = meshRenderer.sharedMaterials;
+                sharedMaterials[materialIndex] = material;
+                meshRenderer.sharedMaterials = sharedMaterials;
+
+                if (conveyor_material != null && material.name == conveyor_material.name) conveyor_material = material;
+                if (conveyor_material_inv != null && material.name == conveyor_material_inv.name) conveyor_material_inv = material;
+            }
+        }
+
+        private static void ApplyColourToPrefab(GameObject gameObject, int materialIndex, string propertyName, Color emissionColor, ref Material conveyor_material, ref Material conveyor_material_inv)
+        {
+            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+            if (meshRenderer != null && meshRenderer.sharedMaterials.Length > materialIndex && meshRenderer.sharedMaterials[materialIndex] != null)
+            {
+                var material = new Material(meshRenderer.sharedMaterials[materialIndex]);
+                material.SetColor(propertyName, emissionColor);
+                var sharedMaterials = meshRenderer.sharedMaterials;
+                sharedMaterials[materialIndex] = material;
+                meshRenderer.sharedMaterials = sharedMaterials;
+
+                if (conveyor_material != null && material.name == conveyor_material.name) conveyor_material = material;
+                if (conveyor_material_inv != null && material.name == conveyor_material_inv.name) conveyor_material_inv = material;
+            }
+        }
+
+        private static void ApplyTextureToPrefab(GameObject gameObject, int materialIndex, string propertyName, string textureName, ref Material conveyor_material, ref Material conveyor_material_inv)
+        {
+            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+            if (meshRenderer != null && meshRenderer.sharedMaterials.Length > materialIndex && meshRenderer.sharedMaterials[materialIndex] != null)
+            {
+                var material = new Material(meshRenderer.sharedMaterials[materialIndex]);
+                material.SetTexture(propertyName, ResourceExt.FindTexture(textureName));
+                var sharedMaterials = meshRenderer.sharedMaterials;
+                sharedMaterials[materialIndex] = material;
+                meshRenderer.sharedMaterials = sharedMaterials;
+
+                if (conveyor_material != null && material.name == conveyor_material.name) conveyor_material = material;
+                if (conveyor_material_inv != null && material.name == conveyor_material_inv.name) conveyor_material_inv = material;
+            }
+        }
+
         private static readonly Dictionary<int, int> iconSizes = new Dictionary<int, int>() {
             { 0, 1024 },
             { 512, 512 },
@@ -1092,15 +1384,51 @@ namespace Tweakificator
             {
                 if (!field.IsStatic && field.IsPublic && !field.IsNotSerialized)
                 {
-                    var templateField = template.GetType().GetField(field.Name);
-                    if (templateField != null)
+                    if (field.Name == "__conveyorTextureSpeed")
                     {
-                        var value = gatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
-                        field.SetValue(dump, value);
+                        var gameObject = typeof(T).GetField("prefabOnDisk")?.GetValue(template) as GameObject;
+                        if (gameObject != null)
+                        {
+                            var speedID = Shader.PropertyToID("_Speed");
+                            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+                            if (meshRenderer != null  && meshRenderer.sharedMaterials.Length > 1 && meshRenderer.sharedMaterials[1] != null)
+                            {
+                                if (meshRenderer.sharedMaterials[1].HasVector(speedID))
+                                {
+                                    var speed = meshRenderer.sharedMaterials[1].GetVector(speedID);
+                                    field.SetValue(dump, speed.y * 160.0f / 1.33333f);
+                                }
+                            }
+                            else
+                            {
+                                var subConveyor = gameObject.transform.Find($"convey_01_straight (1)")?.gameObject;
+                                if (subConveyor != null)
+                                {
+                                    meshRenderer = subConveyor.GetComponent<MeshRenderer>();
+                                    if (meshRenderer != null && meshRenderer.sharedMaterials.Length > 1 && meshRenderer.sharedMaterials[1] != null)
+                                    {
+                                        if (meshRenderer.sharedMaterials[1].HasVector(speedID))
+                                        {
+                                            var speed = meshRenderer.sharedMaterials[1].GetVector(speedID);
+                                            field.SetValue(dump, speed.y * 160.0f / 1.33333f);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     else
                     {
-                        log.LogError(string.Format("Failed to dump {0}", field.Name));
+                        var templateField = template.GetType().GetField(field.Name);
+                        if (templateField != null)
+                        {
+                            var value = gatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
+                            field.SetValue(dump, value);
+                        }
+                        else
+                        {
+                            log.LogError(string.Format("Failed to dump {0}", field.Name));
+                        }
                     }
                 }
             }

@@ -24,9 +24,9 @@ namespace Tweakificator
             {
                 var watch = new System.Diagnostics.Stopwatch();
                 watch.Start();
-                var tempTexture = new Texture2D(2, 2, TextureFormat.RGBA32, true, true);
+                var tempTexture = new Texture2D(2, 2, TextureFormat.RGBA32, true, false);
                 tempTexture.LoadImage(File.ReadAllBytes(tweakPath), false);
-                var texture = new Texture2D(tempTexture.width, tempTexture.height, TextureFormat.RGB24, true, true);
+                var texture = new Texture2D(tempTexture.width, tempTexture.height, TextureFormat.RGB24, true, false);
                 texture.name = name;
                 texture.SetPixels(tempTexture.GetPixels());
                 texture.Apply(true);

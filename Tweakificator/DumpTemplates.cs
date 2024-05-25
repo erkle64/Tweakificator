@@ -175,6 +175,7 @@ namespace Tweakificator
 
     public struct BuildableObjectDump
     {
+        //public ulong id;
         public string modIdentifier;
         public string identifier;
         public BuildableObjectTemplate.BuildableObjectType type;
@@ -182,6 +183,7 @@ namespace Tweakificator
         public BuildableObjectTemplate.SimulationSleepFlags simulationSleepFlags;
         public bool simTypeSleep_initial;
         public bool isSuperBuilding;
+        public float __conveyorTextureSpeed;
         public Vector3IntProxy size;
         public bool validateTerrainTileColliders;
         public BuildableObjectTemplate.DragBuildType dragBuildType;
