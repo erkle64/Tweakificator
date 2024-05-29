@@ -20,7 +20,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.5";
+            VERSION = "2.0.6";
 
         public static LogSource log;
 
@@ -86,20 +86,20 @@ namespace Tweakificator
             log = new LogSource(MODNAME);
 
             tweakificatorFolder = Path.Combine(Path.GetFullPath("."), MODNAME.ToLower());
-            dumpFolder = Path.Combine(tweakificatorFolder, "Dumps");
-            itemsDumpFolder = Path.Combine(dumpFolder, "Items");
-            elementsDumpFolder = Path.Combine(dumpFolder, "Elements");
-            recipesDumpFolder = Path.Combine(dumpFolder, "Recipes");
-            recipeCategoriesDumpFolder = Path.Combine(dumpFolder, "RecipeCategories");
-            recipeCategoryRowsDumpFolder = Path.Combine(dumpFolder, "RecipeCategoryRows");
-            terrainBlocksDumpFolder = Path.Combine(dumpFolder, "TerrainBlocks");
-            buildingsDumpFolder = Path.Combine(dumpFolder, "Buildings");
-            researchDumpFolder = Path.Combine(dumpFolder, "Research");
-            biomeDumpFolder = Path.Combine(dumpFolder, "Biomes");
-            blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "BlastFurnaceModes");
-            assemblyLineObjectDumpFolder = Path.Combine(dumpFolder, "AssemblyLineObjects");
-            reservoirDumpFolder = Path.Combine(dumpFolder, "Reservoirs");
-            iconsDumpFolder = Path.Combine(dumpFolder, "Icons");
+            dumpFolder = Path.Combine(tweakificatorFolder, "dumps");
+            itemsDumpFolder = Path.Combine(dumpFolder, "items");
+            elementsDumpFolder = Path.Combine(dumpFolder, "elements");
+            recipesDumpFolder = Path.Combine(dumpFolder, "recipes");
+            recipeCategoriesDumpFolder = Path.Combine(dumpFolder, "recipeCategories");
+            recipeCategoryRowsDumpFolder = Path.Combine(dumpFolder, "recipeCategoryRows");
+            terrainBlocksDumpFolder = Path.Combine(dumpFolder, "terrain");
+            buildingsDumpFolder = Path.Combine(dumpFolder, "buildings");
+            researchDumpFolder = Path.Combine(dumpFolder, "research");
+            biomeDumpFolder = Path.Combine(dumpFolder, "biomes");
+            blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "blastFurnaceModes");
+            assemblyLineObjectDumpFolder = Path.Combine(dumpFolder, "assemblyLineObjects");
+            reservoirDumpFolder = Path.Combine(dumpFolder, "reservoirs");
+            iconsDumpFolder = Path.Combine(dumpFolder, "icons");
             tweaksFolder = Path.Combine(Path.GetFullPath("."), "tweaks");
             iconsFolder = Path.Combine(tweaksFolder, "icons");
             texturesFolder = Path.Combine(tweaksFolder, "textures");
@@ -182,7 +182,11 @@ namespace Tweakificator
 
             populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data) =>
             {
-                if (!(data is ProxyObject dataObject)) throw new System.Exception("Invalid item modes object");
+                if (!(data is ProxyObject dataObject))
+                {
+                    log.LogError("Invalid item modes object");
+                    return new ItemTemplate.ItemMode[0];
+                }
 
                 var modes = new ItemTemplate.ItemMode[dataObject.Count];
                 var index = 0;
@@ -206,7 +210,11 @@ namespace Tweakificator
 
             populateOverrides.Add(typeof(ResearchTemplate.ResearchTemplateItemInput[]), (Variant data) =>
             {
-                if (!(data is ProxyObject dataObject)) throw new System.Exception("Invalid research item object");
+                if (!(data is ProxyObject dataObject))
+                {
+                    log.LogError("Invalid research item object");
+                    return new ResearchTemplate.ResearchTemplateItemInput[0];
+                }
 
                 var values = new ResearchTemplate.ResearchTemplateItemInput[dataObject.Count];
                 var index = 0;
@@ -226,7 +234,11 @@ namespace Tweakificator
 
             populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeItemInput[]), (Variant data) =>
             {
-                if (!(data is ProxyObject dataObject)) throw new System.Exception("Invalid crafing recipe item object");
+                if (!(data is ProxyObject dataObject))
+                {
+                    log.LogError("Invalid crafing recipe item object");
+                    return new CraftingRecipe.CraftingRecipeItemInput[0];
+                }
 
                 var values = new CraftingRecipe.CraftingRecipeItemInput[dataObject.Count];
                 var index = 0;
@@ -247,7 +259,11 @@ namespace Tweakificator
 
             populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeElementalInput[]), (Variant data) =>
             {
-                if (!(data is ProxyObject dataObject)) throw new System.Exception("Invalid item modes object");
+                if (!(data is ProxyObject dataObject))
+                {
+                    log.LogError("Invalid item modes object");
+                    return new CraftingRecipe.CraftingRecipeElementalInput[0];
+                }
 
                 var values = new CraftingRecipe.CraftingRecipeElementalInput[dataObject.Count];
                 var index = 0;
@@ -267,7 +283,11 @@ namespace Tweakificator
 
             populateOverrides.Add(typeof(Texture2D), (Variant data) =>
             {
-                if (!(data is ProxyString dataString)) throw new System.Exception("Invalid texture");
+                if (!(data is ProxyString dataString))
+                {
+                    log.LogError("Invalid texture");
+                    return null;
+                }
 
                 return ResourceExt.FindTexture(dataString.ToString());
             });
@@ -749,6 +769,13 @@ namespace Tweakificator
                             ProcessRecipeCategoryRowAdditions();
                         }
 
+                        if (!hasRun_blastFurnaceModes && hasLoaded_blastFurnaceModes)
+                        {
+                            hasRun_blastFurnaceModes = true;
+
+                            ProcessBlastFurnaceModeAdditions();
+                        }
+
                         yield return enumerated;
                     }
                 }
@@ -770,10 +797,6 @@ namespace Tweakificator
             if (forceDump.Get() || !File.Exists(path))
             {
                 D data = gatherDump<D, T>(instance);
-                //if (typeof(D) == typeof(BuildableObjectDump))
-                //{
-                //    typeof(BuildableObjectDump).GetField("id").SetValue(data, BuildableObjectTemplate.generateStringHash((string)typeof(BuildableObjectTemplate).GetField("identifier").GetValue(instance)));
-                //}
                 File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
             }
 
@@ -1210,6 +1233,54 @@ namespace Tweakificator
                     entry.Value.Populate(ref instance, populateOverrides);
                     instance.onLoad();
                     dict_elementTemplates.Add(instance.id, instance);
+                }
+            }
+        }
+
+        private static void ProcessBlastFurnaceModeAdditions()
+        {
+            if (patchDataBlastFurnaceModeAdditions != null)
+            {
+                var dict_blastFurnaceModeTemplates = typeof(ItemTemplateManager).GetField("dict_blastFurnaceModeTemplates", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null) as Dictionary<ulong, BlastFurnaceModeTemplate>;
+
+                var blastFurnaceModeTemplates = ItemTemplateManager.getAllBlastFurnaceModeTemplates();
+                foreach (var entry in patchDataBlastFurnaceModeAdditions)
+                {
+                    if (!(entry.Value is ProxyObject source))
+                    {
+                        log.LogError("Invalid blast furnace mode:\r\n" + entry.Value.ToString());
+                        continue;
+                    }
+
+                    BlastFurnaceModeTemplate template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source["__template"].ToString();
+                        var templateHash = BlastFurnaceModeTemplate.generateStringHash(templateIdentifier);
+                        if (!blastFurnaceModeTemplates.TryGetValue(templateHash, out template))
+                        {
+                            log.LogError(string.Format("Template blast furnace mode {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (verbose.Get()) log.Log(string.Format("Adding blast furnace mode {0}", entry.Key));
+
+                    BlastFurnaceModeTemplate instance;
+                    if (template != null)
+                    {
+                        if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
+                        instance = Object.Instantiate(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<BlastFurnaceModeTemplate>();
+                    }
+
+                    instance.identifier = entry.Key;
+                    entry.Value.Populate(ref instance, populateOverrides);
+                    AssetManager.registerAsset(instance, true);
+                    instance.onLoad();
+                    dict_blastFurnaceModeTemplates.Add(instance.id, instance);
                 }
             }
         }
