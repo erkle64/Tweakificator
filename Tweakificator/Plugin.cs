@@ -10,6 +10,7 @@ using UnityEngine;
 using TinyJSON;
 using System.Reflection;
 using System.Linq;
+using System.IO.Compression;
 
 namespace Tweakificator
 {
@@ -20,14 +21,16 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.0.6";
+            VERSION = "2.1.0";
 
         public static LogSource log;
 
         public static TypedConfigEntry<bool> dumpTemplates;
         public static TypedConfigEntry<bool> forceDump;
+        public static TypedConfigEntry<bool> dumpPrefabData;
         public static TypedConfigEntry<bool> dumpIcons;
         public static TypedConfigEntry<int> iconResolution;
+        //public static TypedConfigEntry<bool> dumpTextures;
         public static TypedConfigEntry<bool> verbose;
 
         public static string tweakificatorFolder;
@@ -45,6 +48,7 @@ namespace Tweakificator
         public static string assemblyLineObjectDumpFolder;
         public static string reservoirDumpFolder;
         public static string iconsDumpFolder;
+        //public static string texturesDumpFolder;
         public static string tweaksFolder;
         public static string iconsFolder;
         public static string texturesFolder;
@@ -81,6 +85,8 @@ namespace Tweakificator
 
         public static Dictionary<ulong, Texture2D[]> botIdToTextureArray = null;
 
+        public static Dictionary<string, Texture2D> rawIconTextures = new Dictionary<string, Texture2D>();
+
         public Plugin()
         {
             log = new LogSource(MODNAME);
@@ -100,6 +106,7 @@ namespace Tweakificator
             assemblyLineObjectDumpFolder = Path.Combine(dumpFolder, "assemblyLineObjects");
             reservoirDumpFolder = Path.Combine(dumpFolder, "reservoirs");
             iconsDumpFolder = Path.Combine(dumpFolder, "icons");
+            //texturesDumpFolder = Path.Combine(dumpFolder, "textures");
             tweaksFolder = Path.Combine(Path.GetFullPath("."), "tweaks");
             iconsFolder = Path.Combine(tweaksFolder, "icons");
             texturesFolder = Path.Combine(tweaksFolder, "textures");
@@ -108,8 +115,13 @@ namespace Tweakificator
                 .Group("Dump")
                     .Entry(out dumpTemplates, "dumpTemplates", false, true, "Dump templates. (items, elements, recipes, terrainBlocks, buildings, research, biomes)")
                     .Entry(out forceDump, "forceDump", false, true, "Overwrite existing dump files.")
+                    .Entry(out dumpPrefabData, "dumpPrefabData", true, true, "Dump prefab data.", "eg. material properties.")
                     .Entry(out dumpIcons, "dumpIcons", false, true, "Dump icon files. (very slow)")
                     .Entry(out iconResolution, "iconResolution", 64, true, "Dumped icon resolution. Valid options are 0(max), 64, 96, 128, 256, 512")
+                    //.Entry(out dumpTextures, "dumpTextures", false, true,
+                    //    "Dump texture files. (very very slow)",
+                    //    "Requires 'dumpPrefabData = true' and either forceDump or empty dumps folder.",
+                    //    "Requires about 620MB of disk space.")
                 .EndGroup()
                 .Group("Log")
                     .Entry(out verbose, "verbose", false, true, "Log extra information.")
@@ -136,24 +148,12 @@ namespace Tweakificator
             if (!Directory.Exists(assemblyLineObjectDumpFolder)) Directory.CreateDirectory(assemblyLineObjectDumpFolder);
             if (!Directory.Exists(reservoirDumpFolder)) Directory.CreateDirectory(reservoirDumpFolder);
             if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
+            //if (!Directory.Exists(texturesDumpFolder)) Directory.CreateDirectory(texturesDumpFolder);
             if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
             if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
             if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
 
-            foreach (var path in Directory.GetFiles(tweaksFolder, "*.json", SearchOption.AllDirectories))
-            {
-                var patch = JSON.Load(File.ReadAllText(path));
-                if (patchData == null)
-                {
-                    log.LogFormat("Loading patch {0}", Path.GetFileName(path));
-                    patchData = patch;
-                }
-                else
-                {
-                    log.LogFormat("Merging patch {0}", Path.GetFileName(path));
-                    patchData.Merge(patch);
-                }
-            }
+            LoadFromTweaksFolder(tweaksFolder);
 
             FetchChangesObject(ref patchDataItemChanges, "items");
             FetchChangesObject(ref patchDataElementChanges, "elements");
@@ -180,12 +180,12 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataAssemblyLineObjectAdditions, "assemblyLineObjects");
             FetchAdditionsObject(ref patchDataReservoirAdditions, "reservoirs");
 
-            populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data) =>
+            populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data, object original) =>
             {
                 if (!(data is ProxyObject dataObject))
                 {
                     log.LogError("Invalid item modes object");
-                    return new ItemTemplate.ItemMode[0];
+                    return original;
                 }
 
                 var modes = new ItemTemplate.ItemMode[dataObject.Count];
@@ -208,12 +208,12 @@ namespace Tweakificator
                 return modes;
             });
 
-            populateOverrides.Add(typeof(ResearchTemplate.ResearchTemplateItemInput[]), (Variant data) =>
+            populateOverrides.Add(typeof(ResearchTemplate.ResearchTemplateItemInput[]), (Variant data, object original) =>
             {
                 if (!(data is ProxyObject dataObject))
                 {
                     log.LogError("Invalid research item object");
-                    return new ResearchTemplate.ResearchTemplateItemInput[0];
+                    return original;
                 }
 
                 var values = new ResearchTemplate.ResearchTemplateItemInput[dataObject.Count];
@@ -232,12 +232,12 @@ namespace Tweakificator
                 return values;
             });
 
-            populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeItemInput[]), (Variant data) =>
+            populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeItemInput[]), (Variant data, object original) =>
             {
                 if (!(data is ProxyObject dataObject))
                 {
                     log.LogError("Invalid crafing recipe item object");
-                    return new CraftingRecipe.CraftingRecipeItemInput[0];
+                    return original;
                 }
 
                 var values = new CraftingRecipe.CraftingRecipeItemInput[dataObject.Count];
@@ -257,12 +257,12 @@ namespace Tweakificator
                 return values;
             });
 
-            populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeElementalInput[]), (Variant data) =>
+            populateOverrides.Add(typeof(CraftingRecipe.CraftingRecipeElementalInput[]), (Variant data, object original) =>
             {
                 if (!(data is ProxyObject dataObject))
                 {
                     log.LogError("Invalid item modes object");
-                    return new CraftingRecipe.CraftingRecipeElementalInput[0];
+                    return original;
                 }
 
                 var values = new CraftingRecipe.CraftingRecipeElementalInput[dataObject.Count];
@@ -281,16 +281,199 @@ namespace Tweakificator
                 return values;
             });
 
-            populateOverrides.Add(typeof(Texture2D), (Variant data) =>
+            populateOverrides.Add(typeof(Texture2D), (Variant data, object original) =>
             {
                 if (!(data is ProxyString dataString))
                 {
                     log.LogError("Invalid texture");
-                    return null;
+                    return original;
                 }
 
                 return ResourceExt.FindTexture(dataString.ToString());
             });
+
+            populateOverrides.Add(typeof(GameObject), (Variant data, object original) =>
+            {
+                if (!(data is ProxyObject dataObject))
+                {
+                    log.LogError("Invalid prefab data");
+                    return original;
+                }
+
+                if (!(original is GameObject prefab)) return original;
+
+                populatePrefab(prefab, dataObject);
+
+                return original;
+            });
+        }
+
+        private enum ImageFolderType
+        {
+            None,
+            Icons,
+            Textures
+        }
+        private static void LoadFromTweaksFolder(string path, ImageFolderType imageFolderType = ImageFolderType.None)
+        {
+            foreach (var filePath in Directory.GetFiles(path))
+            {
+                switch (Path.GetExtension(filePath).ToLower())
+                {
+                    case ".json":
+                        LoadTweakFile(new FileStream(filePath, FileMode.Open, FileAccess.Read), filePath);
+                        break;
+
+                    case ".png":
+                        switch (imageFolderType)
+                        {
+                            case ImageFolderType.Icons:
+                                {
+                                    var iconName = Path.GetFileNameWithoutExtension(filePath);
+                                    if (verbose.Get()) log.Log($"Loading icon {iconName} from '{filePath}'");
+
+                                    var iconTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                                    iconTexture.LoadImage(File.ReadAllBytes(filePath), false);
+                                    rawIconTextures[iconName] = iconTexture;
+                                }
+                                break;
+
+                            case ImageFolderType.Textures:
+                                {
+                                    var textureName = Path.GetFileNameWithoutExtension(filePath);
+                                    if (verbose.Get()) log.Log($"Loading texture {textureName} from '{filePath}'");
+
+                                    var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                                    texture.LoadImage(File.ReadAllBytes(filePath), false);
+                                    ResourceExt.RegisterTexture(textureName, texture);
+                                }
+                                break;
+                        }
+                        break;
+
+                    case ".zip":
+                        LoadTweakFilesZip(filePath);
+                        break;
+                }
+            }
+
+            foreach (var directoryPath in Directory.GetDirectories(path))
+            {
+                switch (Path.GetFileName(directoryPath).ToLower())
+                {
+                    case "icons":
+                        LoadFromTweaksFolder(directoryPath, ImageFolderType.Icons);
+                        break;
+
+                    case "textures":
+                        LoadFromTweaksFolder(directoryPath, ImageFolderType.Textures);
+                        break;
+
+                    default:
+                        LoadFromTweaksFolder(directoryPath, imageFolderType);
+                        break;
+                }
+            }
+        }
+
+        private static void LoadTweakFilesZip(string filePath)
+        {
+            using (var zip = ZipFile.Open(filePath, ZipArchiveMode.Read))
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    switch (Path.GetExtension(entry.FullName).ToLower())
+                    {
+                        case ".json":
+                            LoadTweakFile(entry.Open(), $"{filePath}{Path.PathSeparator}{entry.FullName}");
+                            break;
+
+                        case ".png":
+                            var imageFolderType = ImageFolderType.None;
+                            foreach (var folder in entry.FullName.Split('/', '\\').Reverse())
+                            {
+                                if (folder.ToLower() == "icons")
+                                {
+                                    imageFolderType = ImageFolderType.Icons;
+                                    break;
+                                }
+                                else if (folder.ToLower() == "textures")
+                                {
+                                    imageFolderType = ImageFolderType.Textures;
+                                    break;
+                                }
+                            }
+                            switch (imageFolderType)
+                            {
+                                case ImageFolderType.Icons:
+                                    {
+                                        var iconName = Path.GetFileNameWithoutExtension(entry.FullName);
+                                        if (verbose.Get()) log.Log($"Loading icon {iconName} from '{filePath}{Path.PathSeparator}{entry.FullName}'");
+
+                                        var stream = entry.Open();
+                                        var reader = new BinaryReader(stream);
+                                        var bytes = reader.ReadAllBytes();
+                                        reader.Close();
+                                        reader.Dispose();
+                                        stream.Close();
+                                        stream.Dispose();
+
+                                        var iconTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                                        iconTexture.LoadImage(bytes, false);
+                                        rawIconTextures[iconName] = iconTexture;
+                                    }
+                                    break;
+
+                                case ImageFolderType.Textures:
+                                    {
+                                        var textureName = Path.GetFileNameWithoutExtension(entry.FullName);
+                                        if (verbose.Get()) log.Log($"Loading texture {textureName} from '{filePath}{Path.PathSeparator}{entry.FullName}'");
+
+                                        var stream = entry.Open();
+                                        var reader = new BinaryReader(stream);
+                                        var bytes = reader.ReadAllBytes();
+                                        reader.Close();
+                                        reader.Dispose();
+                                        stream.Close();
+                                        stream.Dispose();
+
+                                        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                                        texture.LoadImage(bytes, false);
+                                        ResourceExt.RegisterTexture(textureName, texture);
+                                    }
+                                    break;
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        private static void LoadTweakFile(Stream stream, string filePath)
+        {
+            try
+            {
+                var reader = new StreamReader(stream);
+                var patch = JSON.Load(reader.ReadToEnd());
+                if (patchData == null)
+                {
+                    log.LogFormat("Loading patch {0}", Path.GetFileName(filePath));
+                    patchData = patch;
+                }
+                else
+                {
+                    log.LogFormat("Merging patch {0}", Path.GetFileName(filePath));
+                    patchData.Merge(patch);
+                }
+                reader.Close();
+                reader.Dispose();
+                stream.Close();
+                stream.Dispose();
+            }
+            catch(System.Exception ex)
+            {
+                log.LogWarning($"Failed loading tweak '{filePath}': {ex.Message}");
+            }
         }
 
         private static void FetchChangesObject(ref ProxyObject patchDataChanges, string key)
@@ -383,36 +566,6 @@ namespace Tweakificator
             {
                 var dict_icons = typeof(ResourceDB).GetField("dict_icons", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null) as Dictionary<int, Dictionary<ulong, Sprite>>;
 
-                var filenames = Directory.GetFiles(iconsFolder, "*.png");
-                log.Log(string.Format("Loading {0} custom icons.", filenames.Length));
-                foreach (var filename in filenames)
-                {
-                    var iconPath = Path.Combine(iconsFolder, filename);
-                    var identifier = Path.GetFileNameWithoutExtension(iconPath);
-                    if (!dict_icons[0].ContainsKey(GameRoot.generateStringHash64(identifier)))
-                    {
-                        if (verbose.Get())
-                        {
-                            log.LogFormat("Loading icon {0}", Path.GetFileName(iconPath));
-                        }
-
-                        var iconTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
-                        iconTexture.LoadImage(File.ReadAllBytes(iconPath), false);
-                        int index = 0;
-                        foreach (var entry in iconSizes)
-                        {
-                            var sizeId = entry.Key;
-                            var size = entry.Value;
-                            var sizeIdentifier = identifier + ((sizeId > 0) ? "_" + sizeId.ToString() : "_0");
-                            var texture = (sizeId > 0) ? resizeTexture(iconTexture, size, size) : iconTexture;
-                            texture.name = sizeIdentifier;
-                            dict_icons[sizeId][GameRoot.generateStringHash64(sizeIdentifier)] = createSprite(texture);
-
-                            ++index;
-                        }
-                    }
-                }
-
                 var listPath = Path.Combine(iconsDumpFolder, "__icons.txt");
                 if (forceDump.Get() || !File.Exists(listPath))
                 {
@@ -442,7 +595,7 @@ namespace Tweakificator
                             if (!cache.TryGetValue(sprite.texture.name, out Texture2D texture))
                             {
                                 if (verbose.Get()) log.Log(string.Format("Converting icon texture '{0}'", sprite.texture.name));
-                                texture = duplicateTexture(sprite.texture);
+                                texture = duplicateTexture(sprite.texture, RenderTextureReadWrite.Linear, true);
                                 cache[sprite.texture.name] = texture;
                             }
 
@@ -461,6 +614,34 @@ namespace Tweakificator
                     foreach (var texture in cache.Values) Object.Destroy(texture);
                     cache.Clear();
                     System.GC.Collect();
+                }
+
+                log.Log(string.Format("Applying {0} custom icons.", rawIconTextures.Count));
+                foreach (var kv in rawIconTextures)
+                {
+                    var identifier = kv.Key;
+                    var iconTexture = kv.Value;
+                    iconTexture.name = identifier;
+                    if (!dict_icons[0].ContainsKey(GameRoot.generateStringHash64(identifier)))
+                    {
+                        if (verbose.Get())
+                        {
+                            log.Log($"Loading icon {identifier}");
+                        }
+
+                        int index = 0;
+                        foreach (var entry in iconSizes)
+                        {
+                            var sizeId = entry.Key;
+                            var size = entry.Value;
+                            var sizeIdentifier = identifier + ((sizeId > 0) ? "_" + sizeId.ToString() : "_0");
+                            var texture = (sizeId > 0) ? resizeTexture(iconTexture, size, size) : iconTexture;
+                            texture.name = sizeIdentifier;
+                            dict_icons[sizeId][GameRoot.generateStringHash64(sizeIdentifier)] = createSprite(texture);
+
+                            ++index;
+                        }
+                    }
                 }
             }
 
@@ -1512,6 +1693,10 @@ namespace Tweakificator
             {
                 return null;
             }
+            else if (templateType == typeof(GameObject) && dumpType == typeof(ProxyObject))
+            {
+                return gatherPrefabDump(template as GameObject);
+            }
             else if (templateType == typeof(Texture2D) && dumpType == typeof(Texture2DProxy))
             {
                 return new Texture2DProxy((Texture2D)template);
@@ -1618,19 +1803,264 @@ namespace Tweakificator
             return dump;
         }
 
+        private static ProxyObject gatherPrefabDump(GameObject gameObject, bool isRoot = true)
+        {
+            if (!dumpPrefabData.Get() || gameObject == null) return null;
+
+            var result = new ProxyObject();
+
+            if (isRoot || gameObject.activeSelf && gameObject.name != "Impostor" && !gameObject.TryGetComponent<ScreenPanel>(out var _))
+            {
+                var meshFilter = gameObject.GetComponent<MeshFilter>();
+                if (meshFilter != null && meshFilter.sharedMesh != null)
+                {
+                    var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+                    if (meshRenderer != null)
+                    {
+                        var materialsDump = new ProxyObject();
+                        var materialIndex = 0;
+                        foreach (var material in meshRenderer.sharedMaterials)
+                        {
+                            var materialDump = gatherMaterialDump(material);
+                            materialsDump[materialIndex.ToString()] = materialDump;
+                            materialIndex++;
+                        }
+                        if (materialsDump.Count > 0) result["__materials"] = materialsDump;
+                    }
+                }
+
+                foreach (Transform transform in gameObject.transform)
+                {
+                    var childDump = gatherPrefabDump(transform.gameObject, false);
+                    if (childDump != null && childDump.Count > 0)
+                    {
+                        result[transform.gameObject.name] = childDump;
+                    }
+                }
+            }
+
+            if (result.Count == 0) return null;
+
+            return result;
+        }
+
+        private static ProxyObject gatherMaterialDump(Material material)
+        {
+            if (material == null) return null;
+
+            var result = new ProxyObject();
+
+            var propertyCount = material.shader.GetPropertyCount();
+            for (int i = 0; i < propertyCount; i++)
+            {
+                var propertyName = material.shader.GetPropertyName(i);
+                var propertyNameId = material.shader.GetPropertyNameId(i);
+                var propertyType = material.shader.GetPropertyType(i);
+                switch (propertyType)
+                {
+                    case UnityEngine.Rendering.ShaderPropertyType.Color:
+                        var colorValue = material.GetColor(propertyNameId);
+                        result[propertyName] = new ProxyObject()
+                        {
+                            ["r"] = new ProxyNumber(colorValue.r),
+                            ["g"] = new ProxyNumber(colorValue.g),
+                            ["b"] = new ProxyNumber(colorValue.b),
+                            ["a"] = new ProxyNumber(colorValue.a)
+                        };
+                        break;
+
+                    case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                        var vectorValue = material.GetVector(propertyNameId);
+                        result[propertyName] = new ProxyObject()
+                        {
+                            ["x"] = new ProxyNumber(vectorValue.x),
+                            ["y"] = new ProxyNumber(vectorValue.y),
+                            ["z"] = new ProxyNumber(vectorValue.z),
+                            ["w"] = new ProxyNumber(vectorValue.w)
+                        };
+                        break;
+
+                    case UnityEngine.Rendering.ShaderPropertyType.Float:
+                    case UnityEngine.Rendering.ShaderPropertyType.Range:
+                        var floatValue = material.GetFloat(propertyNameId);
+                        result[propertyName] = new ProxyNumber(floatValue);
+                        break;
+
+                    case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                        var texture = material.GetTexture(propertyNameId);
+                        if (texture is Texture2D texture2D)
+                        {
+                            result[propertyName] = new ProxyString(texture2D.name);
+                            //if (dumpTextures.Get())
+                            //{
+                            //    var texturePath = Path.Combine(texturesDumpFolder, texture2D.name + ".png");
+                            //    if (!File.Exists(texturePath))
+                            //    {
+                            //        var readableTexture = duplicateTexture(texture2D, RenderTextureReadWrite.sRGB, true);
+                            //        var bytes = readableTexture.EncodeToPNG();
+                            //        File.WriteAllBytes(texturePath, bytes);
+                            //        Texture2D
+                            //    }
+                            //}
+                        }
+                        else
+                        {
+                            result[propertyName] = null;
+                        }
+                        break;
+
+                    case UnityEngine.Rendering.ShaderPropertyType.Int:
+                        var intValue = material.GetInt(propertyNameId);
+                        result[propertyName] = new ProxyNumber(intValue);
+                        break;
+                }
+            }
+
+            if (result.Count == 0) return null;
+
+            return result;
+        }
+
+        private void populatePrefab(GameObject prefab, ProxyObject dataObject)
+        {
+            if (dataObject == null || dataObject == null) return;
+            
+            if (dataObject.TryGetValue("__materials", out var materialsValue) && materialsValue is ProxyObject materialsObject)
+            {
+                var meshRenderer = prefab.GetComponent<MeshRenderer>();
+                if (meshRenderer != null)
+                {
+                    log.Log($"Patching materials for prefab object '{prefab.name}'");
+                    foreach (var kv in materialsObject)
+                    {
+                        if (kv.Value is ProxyObject materialObject)
+                        {
+                            try
+                            {
+                                var index = System.Convert.ToInt32(kv.Key, System.Globalization.CultureInfo.InvariantCulture);
+                                if (index >= 0 && index < meshRenderer.sharedMaterials.Length)
+                                {
+                                    var materials = meshRenderer.materials;
+                                    populateMaterial(materials[index], materialObject);
+                                    meshRenderer.materials = materials;
+                                }
+                                else
+                                {
+                                    log.LogWarning($"Index {kv.Key} out of range.");
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                log.LogWarning($"Exception while patching material {kv.Key}: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            log.LogWarning($"Invalid material patch.");
+                        }
+                    }
+                }
+            }
+
+            foreach (var kv in dataObject)
+            {
+                if (kv.Key == "__materials") continue;
+
+                var transform = prefab.transform.Find(kv.Key);
+                if (transform != null)
+                {
+                    populatePrefab(transform.gameObject, kv.Value as ProxyObject);
+                }
+            }
+        }
+
+        private void populateMaterial(Material material, ProxyObject materialObject)
+        {
+            if (material == null || materialObject == null) return;
+
+            log.Log($"Patching material '{material.name}'");
+
+            foreach (var kv in materialObject)
+            {
+                var propertyCount = material.shader.GetPropertyCount();
+                for (int i = 0; i < propertyCount; i++)
+                {
+                    var propertyName = material.shader.GetPropertyName(i);
+                    if (propertyName == kv.Key)
+                    {
+                        switch (material.shader.GetPropertyType(i))
+                        {
+                            case UnityEngine.Rendering.ShaderPropertyType.Color:
+                                try
+                                {
+                                    log.Log($"Setting color {material.shader.GetPropertyName(i)}");
+                                    var value = kv.Value.Make<Color>();
+                                    material.SetColor(material.shader.GetPropertyNameId(i), value);
+                                }
+                                catch (System.Exception) { }
+                                break;
+
+                            case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                                try
+                                {
+                                    log.Log($"Setting vector {material.shader.GetPropertyName(i)}");
+                                    var value = kv.Value.Make<Vector4>();
+                                    material.SetVector(material.shader.GetPropertyNameId(i), value);
+                                }
+                                catch (System.Exception) { }
+                                break;
+
+                            case UnityEngine.Rendering.ShaderPropertyType.Float:
+                            case UnityEngine.Rendering.ShaderPropertyType.Range:
+                                try
+                                {
+                                    log.Log($"Setting float {material.shader.GetPropertyName(i)}");
+                                    var value = kv.Value.Make<float>();
+                                    material.SetFloat(material.shader.GetPropertyNameId(i), value);
+                                }
+                                catch (System.Exception) { }
+                                break;
+
+                            case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                                try
+                                {
+                                    log.Log($"Setting texture {material.shader.GetPropertyName(i)}");
+                                    var textureName = kv.Value.Make<string>();
+                                    var texture = ResourceExt.FindTexture(textureName);
+                                    material.SetTexture(material.shader.GetPropertyNameId(i), texture);
+                                }
+                                catch (System.Exception) { }
+                                break;
+
+                            case UnityEngine.Rendering.ShaderPropertyType.Int:
+                                try
+                                {
+                                    log.Log($"Setting int {material.shader.GetPropertyName(i)}");
+                                    var value = kv.Value.Make<int>();
+                                    material.SetInt(material.shader.GetPropertyNameId(i), value);
+                                }
+                                catch (System.Exception) { }
+                                break;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         public static Sprite createSprite(Texture2D texture)
         {
             return Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
         }
 
-        private static Texture2D duplicateTexture(Texture2D sourceTexture)
+        private static Texture2D duplicateTexture(Texture2D sourceTexture, RenderTextureReadWrite readWrite, bool linear)
         {
-            RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+            RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.ARGB32, readWrite);
 
             Graphics.Blit(sourceTexture, renderTexture);
             RenderTexture previous = RenderTexture.active;
             RenderTexture.active = renderTexture;
-            Texture2D readableTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGBA32, false, true);
+            Texture2D readableTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.ARGB32, false, linear);
             readableTexture.ReadPixels(new Rect(0, 0, sourceTexture.width, sourceTexture.height), 0, 0);
             readableTexture.Apply();
             RenderTexture.active = previous;

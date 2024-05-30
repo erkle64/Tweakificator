@@ -1,6 +1,7 @@
 ﻿using Sirenix.Serialization;
 using System;
 using System.Collections.Generic;
+using TinyJSON;
 using UnityEngine;
 
 namespace Tweakificator
@@ -186,6 +187,7 @@ namespace Tweakificator
         public float __conveyorTextureSpeed;
         public Vector3IntProxy size;
         public bool validateTerrainTileColliders;
+        public ProxyObject prefabOnDisk;
         public BuildableObjectTemplate.DragBuildType dragBuildType;
         public float dragModeOrientationSlope_planeAngle;
         public Quaternion dragModeOrientationSlope_planeAngleQuaternion;

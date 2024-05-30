@@ -39,6 +39,12 @@
     <Reference Include="mscorlib">
       <HintPath>$(FoundryAssembliesPath)mscorlib.dll</HintPath>
     </Reference>
+    <Reference Include="System.IO.Compression">
+      <HintPath>$(FoundryAssembliesPath)System.IO.Compression.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Compression.FileSystem">
+      <HintPath>$(FoundryAssembliesPath)System.IO.Compression.FileSystem.dll</HintPath>
+    </Reference>
     <Reference Include="Sirenix.Serialization">
       <HintPath>$(FoundryAssembliesPath)Sirenix.Serialization.dll</HintPath>
     </Reference>
