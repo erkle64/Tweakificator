@@ -1839,6 +1839,49 @@ namespace Tweakificator
                 }
             }
 
+            if (gameObject.TryGetComponent<IHasFluidBoxManager>(out var fluidBoxManagerInterface))
+            {
+                var fluidBoxManager = fluidBoxManagerInterface.FluidBoxManager;
+                if (fluidBoxManager != null)
+                {
+                    var fluidBoxManagerDump = gatherFluidBoxManagerDump(fluidBoxManager, gameObject.transform);
+                    if (fluidBoxManagerDump != null) result["__fluidBoxManager"] = fluidBoxManagerDump;
+                }
+            }
+
+            if (result.Count == 0) return null;
+
+            return result;
+        }
+
+        private static ProxyObject gatherFluidBoxManagerDump(FluidBoxManager fluidBoxManager, Transform rootTransform)
+        {
+            var result = new ProxyObject();
+
+            var ioFluidBoxContainersArray = new ProxyArray();
+            foreach (var fluidBoxContainer in fluidBoxManager.ioFluidBoxFilterControlPanelsContainer)
+            {
+                var connectionsArray = new ProxyArray();
+                foreach (var connection in fluidBoxContainer.connectionFilterControlPanels)
+                {
+                    connectionsArray.Add(new ProxyString(connection.transform.GetRelativePath(rootTransform)));
+                }
+                ioFluidBoxContainersArray.Add(connectionsArray);
+            }
+            if (ioFluidBoxContainersArray.Count > 0) result["ioFluidBoxContainers"] = ioFluidBoxContainersArray;
+
+            var regularFluidBoxContainersArray = new ProxyArray();
+            foreach (var fluidBoxContainer in fluidBoxManager.regularFluidBoxFilterControlPanels)
+            {
+                var connectionsArray = new ProxyArray();
+                foreach (var connection in  fluidBoxContainer.connectionFilterControlPanels)
+                {
+                    connectionsArray.Add(new ProxyString(connection.transform.GetRelativePath(rootTransform)));
+                }
+                regularFluidBoxContainersArray.Add(connectionsArray);
+            }
+            if (regularFluidBoxContainersArray.Count > 0) result["regularFluidBoxContainers"] = regularFluidBoxContainersArray;
+
             if (result.Count == 0) return null;
 
             return result;
@@ -1958,6 +2001,57 @@ namespace Tweakificator
                         {
                             log.LogWarning($"Invalid material patch.");
                         }
+                    }
+                }
+            }
+
+            if (dataObject.TryGetValue("__fluidBoxManager", out var fluidBoxManagerValue) && fluidBoxManagerValue is ProxyObject fluidBoxManagerObject)
+            {
+                if (prefab.TryGetComponent<IHasFluidBoxManager>(out var fluidBoxManagerInterface))
+                {
+                    var fluidBoxManager = fluidBoxManagerInterface.FluidBoxManager;
+                    if (fluidBoxManagerObject.TryGetValue("ioFluidBoxContainers", out var ioFluidBoxContainersValue) && ioFluidBoxContainersValue is ProxyArray ioFluidBoxContainersArray)
+                    {
+                        var ioFluidBoxContainers = new FluidBoxManager.IOFluidBoxContainer[ioFluidBoxContainersArray.Count];
+                        var containerIndex = 0;
+                        foreach (var ioFluidBoxContainerValue in ioFluidBoxContainersArray)
+                        {
+                            if (ioFluidBoxContainerValue is ProxyArray ioFluidBoxContainerArray)
+                            {
+                                var panels = new IOFluidBoxFilterControlPanel[ioFluidBoxContainerArray.Count];
+                                var panelIndex = 0;
+                                foreach (var ioFluidBoxContainer in ioFluidBoxContainerArray)
+                                {
+                                    var path = ioFluidBoxContainer.ToString();
+                                    panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
+                                }
+                                ioFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
+                            }
+                        }
+
+                        fluidBoxManager.ioFluidBoxFilterControlPanelsContainer = ioFluidBoxContainers;
+                    }
+
+                    if (fluidBoxManagerObject.TryGetValue("regularFluidBoxContainers", out var regularFluidBoxContainersValue) && regularFluidBoxContainersValue is ProxyArray regularFluidBoxContainersArray)
+                    {
+                        var regularFluidBoxContainers = new FluidBoxManager.RegularFluidBoxContainer[regularFluidBoxContainersArray.Count];
+                        var containerIndex = 0;
+                        foreach (var regularFluidBoxContainerValue in regularFluidBoxContainersArray)
+                        {
+                            if (regularFluidBoxContainerValue is ProxyArray regularFluidBoxContainerArray)
+                            {
+                                var panels = new IOFluidBoxFilterControlPanel[regularFluidBoxContainerArray.Count];
+                                var panelIndex = 0;
+                                foreach (var regularFluidBoxContainer in regularFluidBoxContainerArray)
+                                {
+                                    var path = regularFluidBoxContainer.ToString();
+                                    panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
+                                }
+                                regularFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
+                            }
+                        }
+
+                        fluidBoxManager.regularFluidBoxFilterControlPanels = regularFluidBoxContainers;
                     }
                 }
             }
