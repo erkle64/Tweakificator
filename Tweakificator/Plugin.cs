@@ -11,6 +11,7 @@ using TinyJSON;
 using System.Reflection;
 using System.Linq;
 using System.IO.Compression;
+using Expressive;
 
 namespace Tweakificator
 {
@@ -305,6 +306,15 @@ namespace Tweakificator
                 populatePrefab(prefab, dataObject);
 
                 return original;
+            });
+        }
+
+        private static object ProcessExpression(string source, object original)
+        {
+            var expression = new Expression(source, ExpressiveOptions.IgnoreCaseForParsing | ExpressiveOptions.NoCache);
+            return expression.Evaluate(new Dictionary<string, object>
+            {
+                ["value"] = original
             });
         }
 
@@ -997,7 +1007,7 @@ namespace Tweakificator
                                     log.LogFormat("Patching {0} {1}", displayName, identifier);
                             }
 
-                            changes.Populate(ref instance, populateOverrides);
+                            changes.Populate(ref instance, populateOverrides, ProcessExpression);
 
                             callback?.Invoke(instance, changes);
                         }
@@ -1049,7 +1059,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
 
                     ApplyItemTextures(instance, source);
 
@@ -1127,7 +1137,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
 
                     ApplyBuildingTextures(instance, source);
 
@@ -1184,7 +1194,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                     list_terrainBlockTypesSorted.Add(instance);
@@ -1229,7 +1239,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                 }
@@ -1273,7 +1283,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                 }
@@ -1319,7 +1329,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                 }
@@ -1365,7 +1375,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     instance.onLoad();
                     dict_researchTemplates.Add(instance.id, instance);
                 }
@@ -1411,7 +1421,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     instance.onLoad();
                     dict_elementTemplates.Add(instance.id, instance);
                 }
@@ -1458,7 +1468,7 @@ namespace Tweakificator
                     }
 
                     instance.identifier = entry.Key;
-                    entry.Value.Populate(ref instance, populateOverrides);
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     AssetManager.registerAsset(instance, true);
                     instance.onLoad();
                     dict_blastFurnaceModeTemplates.Add(instance.id, instance);
