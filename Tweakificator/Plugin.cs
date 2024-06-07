@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.0";
+            VERSION = "2.1.2";
 
         public static LogSource log;
 
@@ -465,6 +465,7 @@ namespace Tweakificator
             {
                 var reader = new StreamReader(stream);
                 var patch = JSON.Load(reader.ReadToEnd());
+                log.Log(JSON.Dump(patch, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
                 if (patchData == null)
                 {
                     log.LogFormat("Loading patch {0}", Path.GetFileName(filePath));
