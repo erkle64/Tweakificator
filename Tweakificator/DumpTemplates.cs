@@ -120,6 +120,14 @@ namespace Tweakificator
         public string identifier_category;
     }
 
+    public struct CraftingTagDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public string slotLockDescription;
+    }
+
     public struct TerrainBlockDump
     {
         public string modIdentifier;

@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.2";
+            VERSION = "2.1.3";
 
         public static LogSource log;
 
@@ -41,6 +41,7 @@ namespace Tweakificator
         public static string recipesDumpFolder;
         public static string recipeCategoriesDumpFolder;
         public static string recipeCategoryRowsDumpFolder;
+        public static string craftingTagsDumpFolder;
         public static string terrainBlocksDumpFolder;
         public static string buildingsDumpFolder;
         public static string researchDumpFolder;
@@ -62,6 +63,7 @@ namespace Tweakificator
         public static ProxyObject patchDataRecipeChanges = null;
         public static ProxyObject patchDataRecipeCategoryChanges = null;
         public static ProxyObject patchDataRecipeCategoryRowChanges = null;
+        public static ProxyObject patchDataCraftingTagChanges = null;
         public static ProxyObject patchDataTerrainChanges = null;
         public static ProxyObject patchDataBuildingChanges = null;
         public static ProxyObject patchDataResearchChanges = null;
@@ -74,6 +76,7 @@ namespace Tweakificator
         public static ProxyObject patchDataRecipeAdditions = null;
         public static ProxyObject patchDataRecipeCategoryAdditions = null;
         public static ProxyObject patchDataRecipeCategoryRowAdditions = null;
+        public static ProxyObject patchDataCraftingTagAdditions = null;
         public static ProxyObject patchDataTerrainAdditions = null;
         public static ProxyObject patchDataBuildingAdditions = null;
         public static ProxyObject patchDataResearchAdditions = null;
@@ -99,6 +102,7 @@ namespace Tweakificator
             recipesDumpFolder = Path.Combine(dumpFolder, "recipes");
             recipeCategoriesDumpFolder = Path.Combine(dumpFolder, "recipeCategories");
             recipeCategoryRowsDumpFolder = Path.Combine(dumpFolder, "recipeCategoryRows");
+            craftingTagsDumpFolder = Path.Combine(dumpFolder, "craftingTags");
             terrainBlocksDumpFolder = Path.Combine(dumpFolder, "terrain");
             buildingsDumpFolder = Path.Combine(dumpFolder, "buildings");
             researchDumpFolder = Path.Combine(dumpFolder, "research");
@@ -141,6 +145,7 @@ namespace Tweakificator
             if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
             if (!Directory.Exists(recipeCategoriesDumpFolder)) Directory.CreateDirectory(recipeCategoriesDumpFolder);
             if (!Directory.Exists(recipeCategoryRowsDumpFolder)) Directory.CreateDirectory(recipeCategoryRowsDumpFolder);
+            if (!Directory.Exists(craftingTagsDumpFolder)) Directory.CreateDirectory(craftingTagsDumpFolder);
             if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
             if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
             if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
@@ -161,6 +166,7 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataRecipeChanges, "recipes");
             FetchChangesObject(ref patchDataRecipeCategoryChanges, "recipeCategories");
             FetchChangesObject(ref patchDataRecipeCategoryRowChanges, "recipeCategoryRows");
+            FetchChangesObject(ref patchDataCraftingTagChanges, "craftingTags");
             FetchChangesObject(ref patchDataTerrainChanges, "terrain");
             FetchChangesObject(ref patchDataResearchChanges, "research");
             FetchChangesObject(ref patchDataBiomeChanges, "biomes");
@@ -173,6 +179,7 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataRecipeAdditions, "recipes");
             FetchAdditionsObject(ref patchDataRecipeCategoryAdditions, "recipeCategories");
             FetchAdditionsObject(ref patchDataRecipeCategoryRowAdditions, "recipeCategoryRows");
+            FetchAdditionsObject(ref patchDataCraftingTagAdditions, "craftingTags");
             FetchAdditionsObject(ref patchDataTerrainAdditions, "terrain");
             FetchAdditionsObject(ref patchDataResearchAdditions, "research");
             FetchAdditionsObject(ref patchDataBiomeAdditions, "biomes");
@@ -465,7 +472,6 @@ namespace Tweakificator
             {
                 var reader = new StreamReader(stream);
                 var patch = JSON.Load(reader.ReadToEnd());
-                log.Log(JSON.Dump(patch, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
                 if (patchData == null)
                 {
                     log.LogFormat("Loading patch {0}", Path.GetFileName(filePath));
@@ -759,6 +765,21 @@ namespace Tweakificator
                     recipeCategoryRowsDumpFolder);
             }
 
+            [HarmonyPatch(typeof(CraftingTag), nameof(CraftingTag.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadCraftingTag(CraftingTag __instance)
+            {
+                if (hasRun_craftingTags) return;
+                hasLoaded_craftingTags = true;
+
+                ProcessOnLoad<CraftingTagDump, CraftingTag>(
+                    ref __instance,
+                    __instance.identifier,
+                    "crafting tag",
+                    patchDataCraftingTagChanges,
+                    craftingTagsDumpFolder);
+            }
+
             [HarmonyPatch(typeof(BuildableObjectTemplate), nameof(BuildableObjectTemplate.onLoad))]
             [HarmonyPrefix]
             public static void onLoadBuildableObjectTemplate(BuildableObjectTemplate __instance)
@@ -873,6 +894,8 @@ namespace Tweakificator
             private static bool hasRun_recipeCategories = false;
             private static bool hasLoaded_recipeCategoryRows = false;
             private static bool hasRun_recipeCategoryRows = false;
+            private static bool hasLoaded_craftingTags = false;
+            private static bool hasRun_craftingTags = false;
             private static bool hasLoaded_terrain = false;
             private static bool hasRun_terrain = false;
             private static bool hasLoaded_research = false;
@@ -959,6 +982,13 @@ namespace Tweakificator
                             hasRun_recipeCategoryRows = true;
 
                             ProcessRecipeCategoryRowAdditions();
+                        }
+
+                        if (!hasRun_craftingTags && hasLoaded_craftingTags)
+                        {
+                            hasRun_craftingTags = true;
+
+                            ProcessCraftingTagAdditions();
                         }
 
                         if (!hasRun_blastFurnaceModes && hasLoaded_blastFurnaceModes)
@@ -1059,12 +1089,12 @@ namespace Tweakificator
                         instance.railMiner_terrainTargetList_str = new string[0];
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
+                    instance.identifier = entry.Key;
 
                     ApplyItemTextures(instance, source);
 
-                    AssetManager.registerAsset(instance, true);
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                     if (instance.flags.HasFlagNonAlloc(ItemTemplate.ItemTemplateFlags.SCIENCE_ITEM))
                     {
@@ -1131,18 +1161,26 @@ namespace Tweakificator
                     {
                         if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
                         instance = Object.Instantiate(template);
+
+                        if (entry.Value is ProxyObject entryObject && entryObject.ContainsKey("prefabOnDisk"))
+                        {
+                            if (verbose.Get()) log.LogFormat("Cloning template prefab {0}", template.identifier);
+                            instance.prefabOnDisk = Object.Instantiate(instance.prefabOnDisk);
+                            instance.prefabOnDisk.SetActive(false);
+                            Object.DontDestroyOnLoad(instance.prefabOnDisk);
+                        }
                     }
                     else
                     {
                         instance = ScriptableObject.CreateInstance<BuildableObjectTemplate>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
+                    instance.identifier = entry.Key;
 
                     ApplyBuildingTextures(instance, source);
 
-                    AssetManager.registerAsset(instance, true);
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                     if (instance.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
                         dict_buildingPartTemplates.Add(instance.id, instance);
@@ -1194,9 +1232,9 @@ namespace Tweakificator
                         instance = ScriptableObject.CreateInstance<TerrainBlockType>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
-                    AssetManager.registerAsset(instance, true);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                     list_terrainBlockTypesSorted.Add(instance);
                 }
@@ -1239,9 +1277,9 @@ namespace Tweakificator
                         instance = ScriptableObject.CreateInstance<CraftingRecipe>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
-                    AssetManager.registerAsset(instance, true);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                 }
             }
@@ -1266,7 +1304,7 @@ namespace Tweakificator
                         var templateHash = CraftingRecipeCategory.generateStringHash(templateIdentifier);
                         if (!recipeCategoryTemplates.TryGetValue(templateHash, out template))
                         {
-                            log.LogError(string.Format("Template recipe {0} not found!", templateIdentifier));
+                            log.LogError(string.Format("Template recipe category {0} not found!", templateIdentifier));
                         }
                     }
 
@@ -1283,9 +1321,9 @@ namespace Tweakificator
                         instance = ScriptableObject.CreateInstance<CraftingRecipeCategory>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
-                    AssetManager.registerAsset(instance, true);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                 }
             }
@@ -1312,7 +1350,7 @@ namespace Tweakificator
                         var templateHash = CraftingRecipeRowGroup.generateStringHash(templateIdentifier);
                         if (!recipeCategoryRowTemplates.TryGetValue(templateHash, out template))
                         {
-                            log.LogError(string.Format("Template recipe {0} not found!", templateIdentifier));
+                            log.LogError(string.Format("Template recipe category row {0} not found!", templateIdentifier));
                         }
                     }
 
@@ -1329,9 +1367,54 @@ namespace Tweakificator
                         instance = ScriptableObject.CreateInstance<CraftingRecipeRowGroup>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
-                    AssetManager.registerAsset(instance, true);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
+                    instance.onLoad();
+                }
+            }
+        }
+
+        private static void ProcessCraftingTagAdditions()
+        {
+            if (patchDataCraftingTagAdditions != null)
+            {
+                var craftingTagTemplates = ItemTemplateManager.getAllCraftingTags();
+                foreach (var entry in patchDataCraftingTagAdditions)
+                {
+                    if (!(entry.Value is ProxyObject source))
+                    {
+                        throw new System.Exception("Invalid crafting tag:\r\n" + entry.Value.ToString());
+                    }
+
+                    CraftingTag template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source["__template"].ToString();
+                        var templateHash = GameRoot.generateStringHash64(templateIdentifier);
+                        if (!craftingTagTemplates.TryGetValue(templateHash, out template))
+                        {
+                            log.LogError(string.Format("Template crafting tag {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (verbose.Get()) log.Log(string.Format("Adding crafting tag {0}", entry.Key));
+
+                    CraftingTag instance;
+                    if (template != null)
+                    {
+                        if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
+                        instance = Object.Instantiate(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<CraftingTag>();
+                    }
+
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
+                    craftingTagTemplates[instance.id] = instance;
                     instance.onLoad();
                 }
             }
@@ -1468,9 +1551,9 @@ namespace Tweakificator
                         instance = ScriptableObject.CreateInstance<BlastFurnaceModeTemplate>();
                     }
 
-                    instance.identifier = entry.Key;
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
-                    AssetManager.registerAsset(instance, true);
+                    instance.identifier = entry.Key;
+                    AssetManager.registerAsset(instance, false);
                     instance.onLoad();
                     dict_blastFurnaceModeTemplates.Add(instance.id, instance);
                 }
@@ -1712,7 +1795,7 @@ namespace Tweakificator
             {
                 return new Texture2DProxy((Texture2D)template);
             }
-            else if (templateType == typeof(SpriteProxy) && dumpType == typeof(SpriteProxy))
+            else if (templateType == typeof(Sprite) && dumpType == typeof(SpriteProxy))
             {
                 return new SpriteProxy((Sprite)template);
             }
