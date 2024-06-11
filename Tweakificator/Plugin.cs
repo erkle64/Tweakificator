@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.5";
+            VERSION = "2.1.6";
 
         public static LogSource log;
 
@@ -2002,6 +2002,12 @@ namespace Tweakificator
                 }
             }
 
+            if (gameObject.TryGetMaterialSwapManager(out var materialSwapManager))
+            {
+                var materialSwapManagerDump = gatherMaterialSwapManagerDump(materialSwapManager, gameObject.transform);
+                if (materialSwapManagerDump != null) result["__materialSwapManager"] = materialSwapManagerDump;
+            }
+
             if (result.Count == 0) return null;
 
             return result;
@@ -2036,6 +2042,46 @@ namespace Tweakificator
             if (regularFluidBoxContainersArray.Count > 0) result["regularFluidBoxContainers"] = regularFluidBoxContainersArray;
 
             if (result.Count == 0) return null;
+
+            return result;
+        }
+
+        private static ProxyArray gatherMaterialSwapManagerDump(MaterialSwapManager materialSwapManager, Transform rootTransform)
+        {
+            var result = new ProxyArray();
+
+            foreach (var swapEntity in materialSwapManager.swapEntities)
+            {
+                var swapEntityDump = new ProxyObject();
+
+                swapEntityDump["meshRenderer"] = new ProxyString(swapEntity.meshRenderer.transform.GetRelativePath(rootTransform));
+                
+                var materialCombinationsArray = new ProxyArray();
+                foreach (var materialCombination in swapEntity.materialCombinations)
+                {
+                    var materialCombinationDump = new ProxyObject();
+
+                    if (materialCombination.material_on != null)
+                    {
+                        materialCombinationDump["material_on"] = gatherMaterialDump(materialCombination.material_on);
+                    }
+
+                    if (materialCombination.material_off != null)
+                    {
+                        materialCombinationDump["material_off"] = gatherMaterialDump(materialCombination.material_off);
+                    }
+
+                    if (materialCombination.material_strained != null)
+                    {
+                        materialCombinationDump["material_strained"] = gatherMaterialDump(materialCombination.material_strained);
+                    }
+
+                    materialCombinationsArray.Add(materialCombinationDump);
+                }
+                swapEntityDump["materialCombinations"] = materialCombinationsArray;
+
+                result.Add(swapEntityDump);
+            }
 
             return result;
         }
@@ -2160,53 +2206,12 @@ namespace Tweakificator
 
             if (dataObject.TryGetValue("__fluidBoxManager", out var fluidBoxManagerValue) && fluidBoxManagerValue is ProxyObject fluidBoxManagerObject)
             {
-                if (prefab.TryGetComponent<IHasFluidBoxManager>(out var fluidBoxManagerInterface))
-                {
-                    var fluidBoxManager = fluidBoxManagerInterface.FluidBoxManager;
-                    if (fluidBoxManagerObject.TryGetValue("ioFluidBoxContainers", out var ioFluidBoxContainersValue) && ioFluidBoxContainersValue is ProxyArray ioFluidBoxContainersArray)
-                    {
-                        var ioFluidBoxContainers = new FluidBoxManager.IOFluidBoxContainer[ioFluidBoxContainersArray.Count];
-                        var containerIndex = 0;
-                        foreach (var ioFluidBoxContainerValue in ioFluidBoxContainersArray)
-                        {
-                            if (ioFluidBoxContainerValue is ProxyArray ioFluidBoxContainerArray)
-                            {
-                                var panels = new IOFluidBoxFilterControlPanel[ioFluidBoxContainerArray.Count];
-                                var panelIndex = 0;
-                                foreach (var ioFluidBoxContainer in ioFluidBoxContainerArray)
-                                {
-                                    var path = ioFluidBoxContainer.ToString();
-                                    panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
-                                }
-                                ioFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
-                            }
-                        }
+                PopulateFluidBoxManager(prefab, fluidBoxManagerObject);
+            }
 
-                        fluidBoxManager.ioFluidBoxFilterControlPanelsContainer = ioFluidBoxContainers;
-                    }
-
-                    if (fluidBoxManagerObject.TryGetValue("regularFluidBoxContainers", out var regularFluidBoxContainersValue) && regularFluidBoxContainersValue is ProxyArray regularFluidBoxContainersArray)
-                    {
-                        var regularFluidBoxContainers = new FluidBoxManager.RegularFluidBoxContainer[regularFluidBoxContainersArray.Count];
-                        var containerIndex = 0;
-                        foreach (var regularFluidBoxContainerValue in regularFluidBoxContainersArray)
-                        {
-                            if (regularFluidBoxContainerValue is ProxyArray regularFluidBoxContainerArray)
-                            {
-                                var panels = new IOFluidBoxFilterControlPanel[regularFluidBoxContainerArray.Count];
-                                var panelIndex = 0;
-                                foreach (var regularFluidBoxContainer in regularFluidBoxContainerArray)
-                                {
-                                    var path = regularFluidBoxContainer.ToString();
-                                    panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
-                                }
-                                regularFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
-                            }
-                        }
-
-                        fluidBoxManager.regularFluidBoxFilterControlPanels = regularFluidBoxContainers;
-                    }
-                }
+            if (dataObject.TryGetValue("__materialSwapManager", out var materialSwapManagerValue) && materialSwapManagerValue is ProxyArray materialSwapManagerArray)
+            {
+                PopulateMaterialSwapManager(prefab, materialSwapManagerArray);
             }
 
             foreach (var kv in dataObject)
@@ -2217,6 +2222,131 @@ namespace Tweakificator
                 if (transform != null)
                 {
                     populatePrefab(transform.gameObject, kv.Value as ProxyObject);
+                }
+            }
+        }
+
+        private void PopulateMaterialSwapManager(GameObject prefab, ProxyArray materialSwapManagerArray)
+        {
+            if (prefab.TryGetMaterialSwapManager(out var originalMaterialSwapManager))
+            {
+                var materialSwapManager = new MaterialSwapManager();
+                materialSwapManager.swapEntities = new MaterialSwapManager.SwapEntity[originalMaterialSwapManager.swapEntities.Length];
+                System.Array.Copy(originalMaterialSwapManager.swapEntities, materialSwapManager.swapEntities, materialSwapManager.swapEntities.Length);
+                for (int i = 0; i < materialSwapManager.swapEntities.Length; i++)
+                {
+                    materialSwapManager.swapEntities[i].materialCombinations = new MaterialSwapManager.SwapEntity.MaterialCombination[originalMaterialSwapManager.swapEntities[i].materialCombinations.Length];
+                    System.Array.Copy(originalMaterialSwapManager.swapEntities[i].materialCombinations, materialSwapManager.swapEntities[i].materialCombinations, originalMaterialSwapManager.swapEntities[i].materialCombinations.Length);
+                }
+                prefab.SetMaterialSwapManager(materialSwapManager);
+
+                var swapEntityIndex = 0;
+                foreach (var materialSwapValue in materialSwapManagerArray)
+                {
+                    var swapEntity = materialSwapManager.swapEntities[swapEntityIndex];
+                    if (materialSwapValue is ProxyObject materialSwapObject)
+                    {
+                        if (materialSwapObject.TryGetValue("meshRenderer", out var meshRendererValue) && meshRendererValue is ProxyString meshRendererString)
+                        {
+                            var meshRendererGO = prefab.transform.Find(meshRendererString.ToString());
+                            if (meshRendererGO != null) materialSwapManager.swapEntities[swapEntityIndex].meshRenderer = meshRendererGO.GetComponent<MeshRenderer>();
+                        }
+
+                        if (materialSwapObject.TryGetValue("materialCombinations", out var materialCombinationsValue) && materialCombinationsValue is ProxyArray materialCombinationsArray)
+                        {
+                            var combinationIndex = 0;
+                            foreach (var materialCombinationValue in materialCombinationsArray)
+                            {
+                                var materialCombination = swapEntity.materialCombinations[combinationIndex];
+                                if (materialCombinationValue is ProxyObject materialCombinationObject)
+                                {
+                                    if (materialCombinationObject.TryGetValue("material_on", out var materialOnValue) && materialOnValue is ProxyObject materialOnObject)
+                                    {
+                                        if (materialCombination.material_on != null)
+                                        {
+                                            materialCombination.material_on = new Material(materialCombination.material_on);
+                                            materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_on = materialCombination.material_on;
+                                            populateMaterial(materialCombination.material_on, materialOnObject);
+                                        }
+                                    }
+
+                                    if (materialCombinationObject.TryGetValue("material_off", out var materialOffValue) && materialOffValue is ProxyObject materialOffObject)
+                                    {
+                                        if (materialCombination.material_off != null)
+                                        {
+                                            materialCombination.material_off = new Material(materialCombination.material_off);
+                                            materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_off = materialCombination.material_off;
+                                            populateMaterial(materialCombination.material_off, materialOffObject);
+                                        }
+                                    }
+
+                                    if (materialCombinationObject.TryGetValue("material_strained", out var materialStrainedValue) && materialStrainedValue is ProxyObject materialStrainedObject)
+                                    {
+                                        if (materialCombination.material_strained != null)
+                                        {
+                                            materialCombination.material_strained = new Material(materialCombination.material_strained);
+                                            materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_strained = materialCombination.material_strained;
+                                            populateMaterial(materialCombination.material_strained, materialStrainedObject);
+                                        }
+                                    }
+                                }
+                                combinationIndex++;
+                            }
+                        }
+                    }
+
+                    swapEntityIndex++;
+                }
+            }
+        }
+
+        private static void PopulateFluidBoxManager(GameObject prefab, ProxyObject fluidBoxManagerObject)
+        {
+            if (prefab.TryGetComponent<IHasFluidBoxManager>(out var fluidBoxManagerInterface))
+            {
+                var fluidBoxManager = fluidBoxManagerInterface.FluidBoxManager;
+                if (fluidBoxManagerObject.TryGetValue("ioFluidBoxContainers", out var ioFluidBoxContainersValue) && ioFluidBoxContainersValue is ProxyArray ioFluidBoxContainersArray)
+                {
+                    var ioFluidBoxContainers = new FluidBoxManager.IOFluidBoxContainer[ioFluidBoxContainersArray.Count];
+                    var containerIndex = 0;
+                    foreach (var ioFluidBoxContainerValue in ioFluidBoxContainersArray)
+                    {
+                        if (ioFluidBoxContainerValue is ProxyArray ioFluidBoxContainerArray)
+                        {
+                            var panels = new IOFluidBoxFilterControlPanel[ioFluidBoxContainerArray.Count];
+                            var panelIndex = 0;
+                            foreach (var ioFluidBoxContainer in ioFluidBoxContainerArray)
+                            {
+                                var path = ioFluidBoxContainer.ToString();
+                                panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
+                            }
+                            ioFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
+                        }
+                    }
+
+                    fluidBoxManager.ioFluidBoxFilterControlPanelsContainer = ioFluidBoxContainers;
+                }
+
+                if (fluidBoxManagerObject.TryGetValue("regularFluidBoxContainers", out var regularFluidBoxContainersValue) && regularFluidBoxContainersValue is ProxyArray regularFluidBoxContainersArray)
+                {
+                    var regularFluidBoxContainers = new FluidBoxManager.RegularFluidBoxContainer[regularFluidBoxContainersArray.Count];
+                    var containerIndex = 0;
+                    foreach (var regularFluidBoxContainerValue in regularFluidBoxContainersArray)
+                    {
+                        if (regularFluidBoxContainerValue is ProxyArray regularFluidBoxContainerArray)
+                        {
+                            var panels = new IOFluidBoxFilterControlPanel[regularFluidBoxContainerArray.Count];
+                            var panelIndex = 0;
+                            foreach (var regularFluidBoxContainer in regularFluidBoxContainerArray)
+                            {
+                                var path = regularFluidBoxContainer.ToString();
+                                panels[panelIndex++] = prefab.transform.Find(path).GetComponent<IOFluidBoxFilterControlPanel>();
+                            }
+                            regularFluidBoxContainers[containerIndex++].connectionFilterControlPanels = panels;
+                        }
+                    }
+
+                    fluidBoxManager.regularFluidBoxFilterControlPanels = regularFluidBoxContainers;
                 }
             }
         }
