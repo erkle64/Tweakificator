@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.3";
+            VERSION = "2.1.4";
 
         public static LogSource log;
 
@@ -1414,8 +1414,8 @@ namespace Tweakificator
                     entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
                     instance.identifier = entry.Key;
                     AssetManager.registerAsset(instance, false);
-                    craftingTagTemplates[instance.id] = instance;
                     instance.onLoad();
+                    craftingTagTemplates[instance.id] = instance;
                 }
             }
         }
