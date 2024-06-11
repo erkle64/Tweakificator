@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.4";
+            VERSION = "2.1.6";
 
         public static LogSource log;
 
@@ -787,13 +787,18 @@ namespace Tweakificator
                 if (hasRun_buildings) return;
                 hasLoaded_buildings = true;
 
-                ProcessOnLoad<BuildableObjectDump, BuildableObjectTemplate>(
+                var changed = ProcessOnLoad<BuildableObjectDump, BuildableObjectTemplate>(
                     ref __instance,
                     __instance.identifier,
                     "building",
                     patchDataBuildingChanges,
                     buildingsDumpFolder,
                     ApplyBuildingTextures);
+
+                if (changed)
+                {
+                    botIdToTextureArray[__instance.initId()] = GatherStreamingTextures(__instance);
+                }
             }
 
             [HarmonyPatch(typeof(ResearchTemplate), nameof(ResearchTemplate.onLoad))]
@@ -1013,8 +1018,10 @@ namespace Tweakificator
             }
         }
 
-        private static void ProcessOnLoad<D, T>(ref T instance, string identifier, string displayName, ProxyObject patchDataChanges, string dumpFolderPath, System.Action<T, ProxyObject> callback = null) where D : new()
+        private static bool ProcessOnLoad<D, T>(ref T instance, string identifier, string displayName, ProxyObject patchDataChanges, string dumpFolderPath, System.Action<T, ProxyObject> callback = null) where D : new()
         {
+            var changed = false;
+
             var path = Path.Combine(dumpFolderPath, identifier + ".json");
             if (forceDump.Get() || !File.Exists(path))
             {
@@ -1041,10 +1048,14 @@ namespace Tweakificator
                             changes.Populate(ref instance, populateOverrides, ProcessExpression);
 
                             callback?.Invoke(instance, changes);
+
+                            changed = true;
                         }
                     }
                 }
             }
+
+            return changed;
         }
 
         private static void ProcessItemAdditions()
@@ -1185,13 +1196,61 @@ namespace Tweakificator
                     if (instance.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
                         dict_buildingPartTemplates.Add(instance.id, instance);
 
-                    botIdToTextureArray[instance.id] = new Texture2D[] {
-                        instance.buildingPart_texture_albedo,
-                        instance.buildingPart_texture_bottom_albedo,
-                        instance.buildingPart_texture_side_albedo
-                    }.Where(x => x != null).ToArray();
+                    botIdToTextureArray[instance.id] = GatherStreamingTextures(instance);
                 }
             }
+        }
+
+        public static readonly List<MeshRenderer> _meshRenderers = new List<MeshRenderer>();
+        public static readonly List<Texture2D> _botTextureList = new List<Texture2D>();
+        private static Texture2D[] GatherStreamingTextures(BuildableObjectTemplate bot)
+        {
+            //if (bot.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
+            //{
+            //    botIdToTextureArray[bot.id] = new Texture2D[] {
+            //        bot.buildingPart_texture_albedo,
+            //        bot.buildingPart_texture_bottom_albedo,
+            //        bot.buildingPart_texture_side_albedo
+            //    }.Where(x => x != null).ToArray();
+            //}
+            //else
+            if (bot.type != BuildableObjectTemplate.BuildableObjectType.BuildingPart)
+            {
+                bot.prefabOnDisk.GetComponentsInChildren(true, _meshRenderers);
+                foreach (Renderer renderer in _meshRenderers)
+                {
+                    foreach (Material sharedMaterial in renderer.sharedMaterials)
+                    {
+                        if (!(sharedMaterial == null))
+                        {
+                            foreach (int texturePropertyNameId in sharedMaterial.GetTexturePropertyNameIDs())
+                            {
+                                if (sharedMaterial.HasTexture(texturePropertyNameId))
+                                {
+                                    Texture2D texture = sharedMaterial.GetTexture(texturePropertyNameId) as Texture2D;
+                                    if (texture != null && texture.mipmapCount >= TextureStreamingProcessor.MIPS_TO_STREAM_OUT)
+                                    {
+                                        if (texture.streamingMipmaps)
+                                        {
+                                            log.Log($"Streaming texture '{texture.name}' for {bot.identifier}");
+                                            _botTextureList.Add(texture);
+                                            texture.requestedMipmapLevel = TextureStreamingProcessor.MIPS_TO_STREAM_OUT;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            var results = _botTextureList.ToArray();
+            botIdToTextureArray[bot.id] = results;
+
+            _meshRenderers.Clear();
+            _botTextureList.Clear();
+
+            return results;
         }
 
         private static void ProcessTerrainAdditions()
