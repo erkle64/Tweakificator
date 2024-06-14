@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.8";
+            VERSION = "2.1.9";
 
         public static LogSource log;
 
@@ -54,8 +54,6 @@ namespace Tweakificator
         public static string tweaksFolder;
         public static string iconsFolder;
         public static string texturesFolder;
-
-        public static bool firstRun = false;
 
         public static Variant patchData = null;
         public static ProxyObject patchDataItemChanges = null;
@@ -134,30 +132,28 @@ namespace Tweakificator
                 .Load()
                 .Save();
 
-            if (!Directory.Exists(dumpFolder))
+            if (dumpTemplates.Get())
             {
-                Directory.CreateDirectory(dumpFolder);
-                firstRun = true;
+                if (!Directory.Exists(dumpFolder)) Directory.CreateDirectory(dumpFolder);
+                if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
+                if (!Directory.Exists(elementsDumpFolder)) Directory.CreateDirectory(elementsDumpFolder);
+                if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
+                if (!Directory.Exists(recipeCategoriesDumpFolder)) Directory.CreateDirectory(recipeCategoriesDumpFolder);
+                if (!Directory.Exists(recipeCategoryRowsDumpFolder)) Directory.CreateDirectory(recipeCategoryRowsDumpFolder);
+                if (!Directory.Exists(craftingTagsDumpFolder)) Directory.CreateDirectory(craftingTagsDumpFolder);
+                if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
+                if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
+                if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
+                if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
+                if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
+                if (!Directory.Exists(assemblyLineObjectDumpFolder)) Directory.CreateDirectory(assemblyLineObjectDumpFolder);
+                if (!Directory.Exists(reservoirDumpFolder)) Directory.CreateDirectory(reservoirDumpFolder);
+                if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
+                //if (!Directory.Exists(texturesDumpFolder)) Directory.CreateDirectory(texturesDumpFolder);
+                if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
+                if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
+                if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
             }
-
-            if (!Directory.Exists(itemsDumpFolder)) Directory.CreateDirectory(itemsDumpFolder);
-            if (!Directory.Exists(elementsDumpFolder)) Directory.CreateDirectory(elementsDumpFolder);
-            if (!Directory.Exists(recipesDumpFolder)) Directory.CreateDirectory(recipesDumpFolder);
-            if (!Directory.Exists(recipeCategoriesDumpFolder)) Directory.CreateDirectory(recipeCategoriesDumpFolder);
-            if (!Directory.Exists(recipeCategoryRowsDumpFolder)) Directory.CreateDirectory(recipeCategoryRowsDumpFolder);
-            if (!Directory.Exists(craftingTagsDumpFolder)) Directory.CreateDirectory(craftingTagsDumpFolder);
-            if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
-            if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
-            if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
-            if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
-            if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
-            if (!Directory.Exists(assemblyLineObjectDumpFolder)) Directory.CreateDirectory(assemblyLineObjectDumpFolder);
-            if (!Directory.Exists(reservoirDumpFolder)) Directory.CreateDirectory(reservoirDumpFolder);
-            if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
-            //if (!Directory.Exists(texturesDumpFolder)) Directory.CreateDirectory(texturesDumpFolder);
-            if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
-            if (!Directory.Exists(iconsFolder)) Directory.CreateDirectory(iconsFolder);
-            if (!Directory.Exists(texturesFolder)) Directory.CreateDirectory(texturesFolder);
 
             LoadFromTweaksFolder(tweaksFolder);
 
@@ -588,7 +584,7 @@ namespace Tweakificator
                 var dict_icons = typeof(ResourceDB).GetField("dict_icons", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null) as Dictionary<int, Dictionary<ulong, Sprite>>;
 
                 var listPath = Path.Combine(iconsDumpFolder, "__icons.txt");
-                if (forceDump.Get() || !File.Exists(listPath))
+                if (forceDump.Get() || dumpTemplates.Get() && !File.Exists(listPath))
                 {
                     var iconNames = new List<string>();
                     foreach (var entry in dict_icons[0]) iconNames.Add(entry.Value.name);// string.Format("{0}: {1}", entry.Value.name, entry.Value.texture.format.ToString()));
@@ -1026,7 +1022,7 @@ namespace Tweakificator
             var changed = false;
 
             var path = Path.Combine(dumpFolderPath, identifier + ".json");
-            if (forceDump.Get() || !File.Exists(path))
+            if (forceDump.Get() || dumpTemplates.Get() && !File.Exists(path))
             {
                 D data = GatherDump<D, T>(instance);
                 File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
