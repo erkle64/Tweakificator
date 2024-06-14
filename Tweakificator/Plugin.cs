@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.7";
+            VERSION = "2.1.8";
 
         public static LogSource log;
 
@@ -1910,21 +1910,21 @@ namespace Tweakificator
             }
             else if (templateType.IsGenericType && (templateType.GetGenericTypeDefinition() == typeof(List<>)))
             {
-                var dumpValues = typeof(Plugin).GetMethod("gatherDumpList")
+                var dumpValues = typeof(Plugin).GetMethod(nameof(GatherDumpList))
                     .MakeGenericMethod(dumpType.GetGenericArguments()[0], templateType.GetGenericArguments()[0])
                     .Invoke(null, new object[] { template });
                 return dumpValues;
             }
             else if (templateType.IsArray)
             {
-                var dumpValues = typeof(Plugin).GetMethod("gatherDumpArray")
+                var dumpValues = typeof(Plugin).GetMethod(nameof(GatherDumpArray))
                     .MakeGenericMethod(dumpType.GetElementType(), templateType.GetElementType())
                     .Invoke(null, new object[] { template });
                 return dumpValues;
             }
             else if ((dumpType.GetConstructor(System.Type.EmptyTypes) != null || dumpType.IsValueType && dumpType != templateType) && templateType.Assembly == typeof(ItemTemplate).Assembly && !typeof(Object).IsAssignableFrom(templateType))
             {
-                return typeof(Plugin).GetMethod("gatherDump")
+                return typeof(Plugin).GetMethod(nameof(GatherDump))
                     .MakeGenericMethod(dumpType, templateType)
                     .Invoke(null, new object[] { template });
             }
