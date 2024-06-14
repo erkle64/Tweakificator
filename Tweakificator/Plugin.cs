@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.6";
+            VERSION = "2.1.7";
 
         public static LogSource log;
 
@@ -310,7 +310,7 @@ namespace Tweakificator
 
                 if (!(original is GameObject prefab)) return original;
 
-                populatePrefab(prefab, dataObject);
+                PopulatePrefab(prefab, dataObject);
 
                 return original;
             });
@@ -360,8 +360,10 @@ namespace Tweakificator
                                     var textureName = Path.GetFileNameWithoutExtension(filePath);
                                     if (verbose.Get()) log.Log($"Loading texture {textureName} from '{filePath}'");
 
-                                    var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                                    var texture = new Texture2D(2, 2, TextureFormat.RGB24, false, false);
                                     texture.LoadImage(File.ReadAllBytes(filePath), false);
+                                    texture = DuplicateTextureWithoutAlpha(texture, RenderTextureReadWrite.Linear, true);
+                                    texture.Compress(true);
                                     ResourceExt.RegisterTexture(textureName, texture);
                                 }
                                 break;
@@ -454,8 +456,10 @@ namespace Tweakificator
                                         stream.Close();
                                         stream.Dispose();
 
-                                        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+                                        var texture = new Texture2D(2, 2, TextureFormat.RGB24, false, false);
                                         texture.LoadImage(bytes, false);
+                                        texture = DuplicateTextureWithoutAlpha(texture, RenderTextureReadWrite.Linear, true);
+                                        texture.Compress(true);
                                         ResourceExt.RegisterTexture(textureName, texture);
                                     }
                                     break;
@@ -474,12 +478,12 @@ namespace Tweakificator
                 var patch = JSON.Load(reader.ReadToEnd());
                 if (patchData == null)
                 {
-                    log.LogFormat("Loading patch {0}", Path.GetFileName(filePath));
+                    if (verbose.Get()) log.LogFormat("Loading patch {0}", Path.GetFileName(filePath));
                     patchData = patch;
                 }
                 else
                 {
-                    log.LogFormat("Merging patch {0}", Path.GetFileName(filePath));
+                    if (verbose.Get()) log.LogFormat("Merging patch {0}", Path.GetFileName(filePath));
                     patchData.Merge(patch);
                 }
                 reader.Close();
@@ -612,7 +616,7 @@ namespace Tweakificator
                             if (!cache.TryGetValue(sprite.texture.name, out Texture2D texture))
                             {
                                 if (verbose.Get()) log.Log(string.Format("Converting icon texture '{0}'", sprite.texture.name));
-                                texture = duplicateTexture(sprite.texture, RenderTextureReadWrite.Linear, true);
+                                texture = DuplicateTexture(sprite.texture, RenderTextureReadWrite.Linear, true);
                                 cache[sprite.texture.name] = texture;
                             }
 
@@ -633,7 +637,7 @@ namespace Tweakificator
                     System.GC.Collect();
                 }
 
-                log.Log(string.Format("Applying {0} custom icons.", rawIconTextures.Count));
+                if (verbose.Get()) log.Log(string.Format("Applying {0} custom icons.", rawIconTextures.Count));
                 foreach (var kv in rawIconTextures)
                 {
                     var identifier = kv.Key;
@@ -643,7 +647,7 @@ namespace Tweakificator
                     {
                         if (verbose.Get())
                         {
-                            log.Log($"Loading icon {identifier}");
+                            if (verbose.Get()) log.Log($"Loading icon {identifier}");
                         }
 
                         int index = 0;
@@ -652,9 +656,9 @@ namespace Tweakificator
                             var sizeId = entry.Key;
                             var size = entry.Value;
                             var sizeIdentifier = identifier + ((sizeId > 0) ? "_" + sizeId.ToString() : "_0");
-                            var texture = (sizeId > 0) ? resizeTexture(iconTexture, size, size) : iconTexture;
+                            var texture = (sizeId > 0) ? ResizeTexture(iconTexture, size, size) : iconTexture;
                             texture.name = sizeIdentifier;
-                            dict_icons[sizeId][GameRoot.generateStringHash64(sizeIdentifier)] = createSprite(texture);
+                            dict_icons[sizeId][GameRoot.generateStringHash64(sizeIdentifier)] = CreateSprite(texture);
 
                             ++index;
                         }
@@ -1012,7 +1016,6 @@ namespace Tweakificator
             [HarmonyPostfix]
             static void onItemTemplateManagerInitOnApplicationStart(ref IEnumerator __result)
             {
-                log.LogFormat("onItemTemplateManagerInitOnApplicationStart");
                 var myEnumerator = new InitOnApplicationStartEnumerator(__result);
                 __result = myEnumerator.GetEnumerator();
             }
@@ -1025,7 +1028,7 @@ namespace Tweakificator
             var path = Path.Combine(dumpFolderPath, identifier + ".json");
             if (forceDump.Get() || !File.Exists(path))
             {
-                D data = gatherDump<D, T>(instance);
+                D data = GatherDump<D, T>(instance);
                 File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
             }
 
@@ -1033,16 +1036,16 @@ namespace Tweakificator
             {
                 foreach (var entry in patchDataChanges)
                 {
-                    if (buildPatternRegex(entry.Key).IsMatch(identifier))
+                    if (BuildPatternRegex(entry.Key).IsMatch(identifier))
                     {
                         if (entry.Value is ProxyObject changes)
                         {
                             if (verbose.Get())
                             {
                                 if (identifier != entry.Key)
-                                    log.LogFormat("Patching {0} {1}. Matched '{2}'", displayName, identifier, entry.Key);
+                                    if (verbose.Get()) log.LogFormat("Patching {0} {1}. Matched '{2}'", displayName, identifier, entry.Key);
                                 else
-                                    log.LogFormat("Patching {0} {1}", displayName, identifier);
+                                    if (verbose.Get()) log.LogFormat("Patching {0} {1}", displayName, identifier);
                             }
 
                             changes.Populate(ref instance, populateOverrides, ProcessExpression);
@@ -1205,16 +1208,15 @@ namespace Tweakificator
         public static readonly List<Texture2D> _botTextureList = new List<Texture2D>();
         private static Texture2D[] GatherStreamingTextures(BuildableObjectTemplate bot)
         {
-            //if (bot.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
-            //{
-            //    botIdToTextureArray[bot.id] = new Texture2D[] {
-            //        bot.buildingPart_texture_albedo,
-            //        bot.buildingPart_texture_bottom_albedo,
-            //        bot.buildingPart_texture_side_albedo
-            //    }.Where(x => x != null).ToArray();
-            //}
-            //else
-            if (bot.type != BuildableObjectTemplate.BuildableObjectType.BuildingPart)
+            /*if (bot.type == BuildableObjectTemplate.BuildableObjectType.BuildingPart)
+            {
+                botIdToTextureArray[bot.id] = new Texture2D[] {
+                    bot.buildingPart_texture_albedo,
+                    bot.buildingPart_texture_bottom_albedo,
+                    bot.buildingPart_texture_side_albedo
+                }.Where(x => x != null).ToArray();
+            }
+            else */if (bot.type != BuildableObjectTemplate.BuildableObjectType.BuildingPart)
             {
                 bot.prefabOnDisk.GetComponentsInChildren(true, _meshRenderers);
                 foreach (Renderer renderer in _meshRenderers)
@@ -1232,7 +1234,7 @@ namespace Tweakificator
                                     {
                                         if (texture.streamingMipmaps)
                                         {
-                                            log.Log($"Streaming texture '{texture.name}' for {bot.identifier}");
+                                            if (verbose.Get()) log.Log($"Streaming texture '{texture.name}' for {bot.identifier}");
                                             _botTextureList.Add(texture);
                                             texture.requestedMipmapLevel = TextureStreamingProcessor.MIPS_TO_STREAM_OUT;
                                         }
@@ -1777,12 +1779,12 @@ namespace Tweakificator
             { 64, 64 }
         };
 
-        private static Regex buildPatternRegex(string pattern)
+        private static Regex BuildPatternRegex(string pattern)
         {
             return new Regex("^" + Regex.Escape(pattern).Replace(@"\*", @"(?:.*?)") + "$");
         }
 
-        public static D gatherDump<D, T>(T template) where D : new()
+        public static D GatherDump<D, T>(T template) where D : new()
         {
             var dump = (object)new D();
             foreach (var field in typeof(D).GetFields())
@@ -1827,7 +1829,7 @@ namespace Tweakificator
                         var templateField = template.GetType().GetField(field.Name);
                         if (templateField != null)
                         {
-                            var value = gatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
+                            var value = GatherDumpValue(templateField.GetValue(template), field.FieldType, templateField.FieldType);
                             field.SetValue(dump, value);
                         }
                         else
@@ -1840,7 +1842,7 @@ namespace Tweakificator
             return (D)dump;
         }
 
-        public static object gatherDumpValue(object template, System.Type dumpType, System.Type templateType)
+        public static object GatherDumpValue(object template, System.Type dumpType, System.Type templateType)
         {
             if (template == null)
             {
@@ -1848,7 +1850,7 @@ namespace Tweakificator
             }
             else if (templateType == typeof(GameObject) && dumpType == typeof(ProxyObject))
             {
-                return gatherPrefabDump(template as GameObject);
+                return GatherPrefabDump(template as GameObject);
             }
             else if (templateType == typeof(Texture2D) && dumpType == typeof(Texture2DProxy))
             {
@@ -1930,33 +1932,33 @@ namespace Tweakificator
             return template;
         }
 
-        public static D[] gatherDumpArray<D, T>(T[] template)
+        public static D[] GatherDumpArray<D, T>(T[] template)
         {
             var dumpType = typeof(D);
             var templateType = typeof(T);
             var dump = new D[template.Length];
             for (int i = 0; i < template.Length; i++)
             {
-                dump[i] = (D)gatherDumpValue(template[i], dumpType, templateType);
+                dump[i] = (D)GatherDumpValue(template[i], dumpType, templateType);
             }
 
             return dump;
         }
 
-        public static List<D> gatherDumpList<D, T>(List<T> template)
+        public static List<D> GatherDumpList<D, T>(List<T> template)
         {
             var dumpType = typeof(D);
             var templateType = typeof(T);
             var dump = new List<D>();
             foreach (var item in template)
             {
-                dump.Add((D)gatherDumpValue(item, dumpType, templateType));
+                dump.Add((D)GatherDumpValue(item, dumpType, templateType));
             }
 
             return dump;
         }
 
-        private static ProxyObject gatherPrefabDump(GameObject gameObject, bool isRoot = true)
+        private static ProxyObject GatherPrefabDump(GameObject gameObject, bool isRoot = true)
         {
             if (!dumpPrefabData.Get() || gameObject == null) return null;
 
@@ -1974,7 +1976,7 @@ namespace Tweakificator
                         var materialIndex = 0;
                         foreach (var material in meshRenderer.sharedMaterials)
                         {
-                            var materialDump = gatherMaterialDump(material);
+                            var materialDump = GatherMaterialDump(material);
                             materialsDump[materialIndex.ToString()] = materialDump;
                             materialIndex++;
                         }
@@ -1984,7 +1986,7 @@ namespace Tweakificator
 
                 foreach (Transform transform in gameObject.transform)
                 {
-                    var childDump = gatherPrefabDump(transform.gameObject, false);
+                    var childDump = GatherPrefabDump(transform.gameObject, false);
                     if (childDump != null && childDump.Count > 0)
                     {
                         result[transform.gameObject.name] = childDump;
@@ -1997,14 +1999,14 @@ namespace Tweakificator
                 var fluidBoxManager = fluidBoxManagerInterface.FluidBoxManager;
                 if (fluidBoxManager != null)
                 {
-                    var fluidBoxManagerDump = gatherFluidBoxManagerDump(fluidBoxManager, gameObject.transform);
+                    var fluidBoxManagerDump = GatherFluidBoxManagerDump(fluidBoxManager, gameObject.transform);
                     if (fluidBoxManagerDump != null) result["__fluidBoxManager"] = fluidBoxManagerDump;
                 }
             }
 
             if (gameObject.TryGetMaterialSwapManager(out var materialSwapManager))
             {
-                var materialSwapManagerDump = gatherMaterialSwapManagerDump(materialSwapManager, gameObject.transform);
+                var materialSwapManagerDump = GatherMaterialSwapManagerDump(materialSwapManager, gameObject.transform);
                 if (materialSwapManagerDump != null) result["__materialSwapManager"] = materialSwapManagerDump;
             }
 
@@ -2013,7 +2015,7 @@ namespace Tweakificator
             return result;
         }
 
-        private static ProxyObject gatherFluidBoxManagerDump(FluidBoxManager fluidBoxManager, Transform rootTransform)
+        private static ProxyObject GatherFluidBoxManagerDump(FluidBoxManager fluidBoxManager, Transform rootTransform)
         {
             var result = new ProxyObject();
 
@@ -2046,7 +2048,7 @@ namespace Tweakificator
             return result;
         }
 
-        private static ProxyArray gatherMaterialSwapManagerDump(MaterialSwapManager materialSwapManager, Transform rootTransform)
+        private static ProxyArray GatherMaterialSwapManagerDump(MaterialSwapManager materialSwapManager, Transform rootTransform)
         {
             var result = new ProxyArray();
 
@@ -2063,17 +2065,17 @@ namespace Tweakificator
 
                     if (materialCombination.material_on != null)
                     {
-                        materialCombinationDump["material_on"] = gatherMaterialDump(materialCombination.material_on);
+                        materialCombinationDump["material_on"] = GatherMaterialDump(materialCombination.material_on);
                     }
 
                     if (materialCombination.material_off != null)
                     {
-                        materialCombinationDump["material_off"] = gatherMaterialDump(materialCombination.material_off);
+                        materialCombinationDump["material_off"] = GatherMaterialDump(materialCombination.material_off);
                     }
 
                     if (materialCombination.material_strained != null)
                     {
-                        materialCombinationDump["material_strained"] = gatherMaterialDump(materialCombination.material_strained);
+                        materialCombinationDump["material_strained"] = GatherMaterialDump(materialCombination.material_strained);
                     }
 
                     materialCombinationsArray.Add(materialCombinationDump);
@@ -2086,7 +2088,7 @@ namespace Tweakificator
             return result;
         }
 
-        private static ProxyObject gatherMaterialDump(Material material)
+        private static ProxyObject GatherMaterialDump(Material material)
         {
             if (material == null) return null;
 
@@ -2163,7 +2165,7 @@ namespace Tweakificator
             return result;
         }
 
-        private void populatePrefab(GameObject prefab, ProxyObject dataObject)
+        private void PopulatePrefab(GameObject prefab, ProxyObject dataObject)
         {
             if (dataObject == null || dataObject == null) return;
             
@@ -2172,7 +2174,7 @@ namespace Tweakificator
                 var meshRenderer = prefab.GetComponent<MeshRenderer>();
                 if (meshRenderer != null)
                 {
-                    log.Log($"Patching materials for prefab object '{prefab.name}'");
+                    if (verbose.Get()) log.Log($"Patching materials for prefab object '{prefab.name}'");
                     foreach (var kv in materialsObject)
                     {
                         if (kv.Value is ProxyObject materialObject)
@@ -2183,7 +2185,7 @@ namespace Tweakificator
                                 if (index >= 0 && index < meshRenderer.sharedMaterials.Length)
                                 {
                                     var materials = meshRenderer.materials;
-                                    populateMaterial(materials[index], materialObject);
+                                    PopulateMaterial(materials[index], materialObject);
                                     meshRenderer.materials = materials;
                                 }
                                 else
@@ -2221,7 +2223,7 @@ namespace Tweakificator
                 var transform = prefab.transform.Find(kv.Key);
                 if (transform != null)
                 {
-                    populatePrefab(transform.gameObject, kv.Value as ProxyObject);
+                    PopulatePrefab(transform.gameObject, kv.Value as ProxyObject);
                 }
             }
         }
@@ -2266,7 +2268,7 @@ namespace Tweakificator
                                         {
                                             materialCombination.material_on = new Material(materialCombination.material_on);
                                             materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_on = materialCombination.material_on;
-                                            populateMaterial(materialCombination.material_on, materialOnObject);
+                                            PopulateMaterial(materialCombination.material_on, materialOnObject);
                                         }
                                     }
 
@@ -2276,7 +2278,7 @@ namespace Tweakificator
                                         {
                                             materialCombination.material_off = new Material(materialCombination.material_off);
                                             materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_off = materialCombination.material_off;
-                                            populateMaterial(materialCombination.material_off, materialOffObject);
+                                            PopulateMaterial(materialCombination.material_off, materialOffObject);
                                         }
                                     }
 
@@ -2286,7 +2288,7 @@ namespace Tweakificator
                                         {
                                             materialCombination.material_strained = new Material(materialCombination.material_strained);
                                             materialSwapManager.swapEntities[swapEntityIndex].materialCombinations[combinationIndex].material_strained = materialCombination.material_strained;
-                                            populateMaterial(materialCombination.material_strained, materialStrainedObject);
+                                            PopulateMaterial(materialCombination.material_strained, materialStrainedObject);
                                         }
                                     }
                                 }
@@ -2351,11 +2353,11 @@ namespace Tweakificator
             }
         }
 
-        private void populateMaterial(Material material, ProxyObject materialObject)
+        private void PopulateMaterial(Material material, ProxyObject materialObject)
         {
             if (material == null || materialObject == null) return;
 
-            log.Log($"Patching material '{material.name}'");
+            if (verbose.Get()) log.Log($"Patching material '{material.name}'");
 
             foreach (var kv in materialObject)
             {
@@ -2370,7 +2372,7 @@ namespace Tweakificator
                             case UnityEngine.Rendering.ShaderPropertyType.Color:
                                 try
                                 {
-                                    log.Log($"Setting color {material.shader.GetPropertyName(i)}");
+                                    if (verbose.Get()) log.Log($"Setting color {material.shader.GetPropertyName(i)}");
                                     var value = kv.Value.Make<Color>();
                                     material.SetColor(material.shader.GetPropertyNameId(i), value);
                                 }
@@ -2380,7 +2382,7 @@ namespace Tweakificator
                             case UnityEngine.Rendering.ShaderPropertyType.Vector:
                                 try
                                 {
-                                    log.Log($"Setting vector {material.shader.GetPropertyName(i)}");
+                                    if (verbose.Get()) log.Log($"Setting vector {material.shader.GetPropertyName(i)}");
                                     var value = kv.Value.Make<Vector4>();
                                     material.SetVector(material.shader.GetPropertyNameId(i), value);
                                 }
@@ -2391,7 +2393,7 @@ namespace Tweakificator
                             case UnityEngine.Rendering.ShaderPropertyType.Range:
                                 try
                                 {
-                                    log.Log($"Setting float {material.shader.GetPropertyName(i)}");
+                                    if (verbose.Get()) log.Log($"Setting float {material.shader.GetPropertyName(i)}");
                                     var value = kv.Value.Make<float>();
                                     material.SetFloat(material.shader.GetPropertyNameId(i), value);
                                 }
@@ -2401,7 +2403,7 @@ namespace Tweakificator
                             case UnityEngine.Rendering.ShaderPropertyType.Texture:
                                 try
                                 {
-                                    log.Log($"Setting texture {material.shader.GetPropertyName(i)}");
+                                    if (verbose.Get()) log.Log($"Setting texture {material.shader.GetPropertyName(i)}");
                                     var textureName = kv.Value.Make<string>();
                                     var texture = ResourceExt.FindTexture(textureName);
                                     material.SetTexture(material.shader.GetPropertyNameId(i), texture);
@@ -2412,7 +2414,7 @@ namespace Tweakificator
                             case UnityEngine.Rendering.ShaderPropertyType.Int:
                                 try
                                 {
-                                    log.Log($"Setting int {material.shader.GetPropertyName(i)}");
+                                    if (verbose.Get()) log.Log($"Setting int {material.shader.GetPropertyName(i)}");
                                     var value = kv.Value.Make<int>();
                                     material.SetInt(material.shader.GetPropertyNameId(i), value);
                                 }
@@ -2425,12 +2427,12 @@ namespace Tweakificator
             }
         }
 
-        public static Sprite createSprite(Texture2D texture)
+        public static Sprite CreateSprite(Texture2D texture)
         {
             return Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
         }
 
-        private static Texture2D duplicateTexture(Texture2D sourceTexture, RenderTextureReadWrite readWrite, bool linear)
+        private static Texture2D DuplicateTexture(Texture2D sourceTexture, RenderTextureReadWrite readWrite, bool linear)
         {
             RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.ARGB32, readWrite);
 
@@ -2445,7 +2447,22 @@ namespace Tweakificator
             return readableTexture;
         }
 
-        private static Texture2D resizeTexture(Texture2D inputTexture, int width, int height)
+        private static Texture2D DuplicateTextureWithoutAlpha(Texture2D sourceTexture, RenderTextureReadWrite readWrite, bool linear)
+        {
+            RenderTexture renderTexture = RenderTexture.GetTemporary(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.ARGB32, readWrite);
+
+            Graphics.Blit(sourceTexture, renderTexture);
+            RenderTexture previous = RenderTexture.active;
+            RenderTexture.active = renderTexture;
+            Texture2D readableTexture = new Texture2D(sourceTexture.width, sourceTexture.height, TextureFormat.RGB24, true, linear);
+            readableTexture.ReadPixels(new Rect(0, 0, sourceTexture.width, sourceTexture.height), 0, 0);
+            readableTexture.Apply(true);
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(renderTexture);
+            return readableTexture;
+        }
+
+        private static Texture2D ResizeTexture(Texture2D inputTexture, int width, int height)
         {
             RenderTexture rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
             RenderTexture.active = rt;
@@ -2456,7 +2473,7 @@ namespace Tweakificator
             return result;
         }
 
-        internal static Sprite getIcon(string name)
+        internal static Sprite GetIcon(string name)
         {
             return ResourceDB.getIcon(name, 256);
         }
