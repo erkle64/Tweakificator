@@ -1,6 +1,4 @@
-﻿using Sirenix.Serialization;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TinyJSON;
 using UnityEngine;
 
@@ -16,6 +14,7 @@ namespace Tweakificator
         public string creativeModeCategory_str;
         public string entitlementIdentifier;
         public string icon_identifier;
+        public string __conveyorItemTexture;
         public uint stackSize;
         public bool isHiddenItem;
         public ItemTemplate.ItemTemplateFlags flags;
@@ -196,6 +195,23 @@ namespace Tweakificator
         public Vector3IntProxy size;
         public bool validateTerrainTileColliders;
         public ProxyObject prefabOnDisk;
+        public ProxyObject debrisWithExplosionForcePrefab;
+        public ProxyObject droneMiner_dronePrefab;
+        public ProxyObject droneTransport_dronePrefab;
+        public ProxyObject loader_prefabOutputDummy;
+        public ProxyObject loader_prefabAutoDummy;
+        public ProxyObject voxelMeshCorner;
+        public ProxyObject worldDecor_despawnPrefab;
+        public ProxyObject minecartDepot_railMinerPrefab;
+        public ProxyObject freightElevator_middlePartGOH1;
+        public ProxyObject freightElevator_middlePartGOH2;
+        public ProxyObject elevatorStation_cabinPrefab;
+        public ProxyObject elevatorStation_closeOffGO_top;
+        public ProxyObject elevatorStation_closeOffGO_bottom;
+        public ProxyObject constructionDronePort_dronePrefab;
+        public ProxyObject transportDronePort_transportDronePrefab;
+        public ProxyObject emergencyBeacon_dropPodPrefab;
+        public ProxyObject emergencyBeacon_customDemolitionPrefab;
         public BuildableObjectTemplate.DragBuildType dragBuildType;
         public float dragModeOrientationSlope_planeAngle;
         public Quaternion dragModeOrientationSlope_planeAngleQuaternion;

@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.9";
+            VERSION = "2.1.10";
 
         public static LogSource log;
 
@@ -674,11 +674,10 @@ namespace Tweakificator
                 //    var sprite = ResourceDB.getIcon(__instance.icon_identifier, 96);
                 //    if (sprite != null)
                 //    {
-                //        var hash = ItemTemplate.generateStringHash(__instance.identifier);
-                //        var path = Path.Combine(iconsDumpFolder, "web", $"{(hash >> 32) & 0xFFFFFFFFUL}-{hash & 0xFFFFFFFFUL}.png");
+                //        var path = Path.Combine(iconsDumpFolder, "web", $"item-{__instance.identifier}.png");
                 //        if (!File.Exists(path))
                 //        {
-                //            var texture = duplicateTexture(sprite.texture);
+                //            var texture = DuplicateTexture(sprite.texture, RenderTextureReadWrite.Linear, true);
 
                 //            var croppedTexture = new Texture2D(Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), TextureFormat.RGBA32, false);
                 //            var pixels = texture.GetPixels(Mathf.FloorToInt(sprite.textureRect.x), Mathf.FloorToInt(sprite.textureRect.y), Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), 0);
@@ -711,6 +710,32 @@ namespace Tweakificator
             {
                 if (hasRun_elements) return;
                 hasLoaded_elements = true;
+
+                //if (!string.IsNullOrEmpty(__instance.icon_identifier))
+                //{
+                //    var sprite = ResourceDB.getIcon(__instance.icon_identifier, 96);
+                //    if (sprite != null)
+                //    {
+                //        var path = Path.Combine(iconsDumpFolder, "web", $"element-{__instance.identifier}.png");
+                //        if (!File.Exists(path))
+                //        {
+                //            var texture = DuplicateTexture(sprite.texture, RenderTextureReadWrite.Linear, true);
+
+                //            var croppedTexture = new Texture2D(Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), TextureFormat.RGBA32, false);
+                //            var pixels = texture.GetPixels(Mathf.FloorToInt(sprite.textureRect.x), Mathf.FloorToInt(sprite.textureRect.y), Mathf.CeilToInt(sprite.textureRect.width), Mathf.CeilToInt(sprite.textureRect.height), 0);
+                //            croppedTexture.SetPixels(pixels);
+                //            croppedTexture.Apply();
+                //            var bytes = croppedTexture.EncodeToPNG();
+                //            File.WriteAllBytes(path, bytes);
+                //            Object.Destroy(croppedTexture);
+                //            System.GC.Collect();
+                //        }
+                //    }
+                //    else
+                //    {
+                //        log.LogWarning($"Icon not found: {__instance.identifier}");
+                //    }
+                //}
 
                 ProcessOnLoad<ElementDump, ElementTemplate>(
                     ref __instance,
@@ -1025,7 +1050,7 @@ namespace Tweakificator
             if (forceDump.Get() || dumpTemplates.Get() && !File.Exists(path))
             {
                 D data = GatherDump<D, T>(instance);
-                File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints));
+                File.WriteAllText(path, JSON.Dump(data, EncodeOptions.PrettyPrint | EncodeOptions.NoTypeHints | EncodeOptions.DropNulls));
             }
 
             if (patchDataChanges != null)
@@ -1787,7 +1812,20 @@ namespace Tweakificator
             {
                 if (!field.IsStatic && field.IsPublic && !field.IsNotSerialized)
                 {
-                    if (field.Name == "__conveyorTextureSpeed")
+                    if (field.Name == "__conveyorItemTexture")
+                    {
+                        var meshMaterial = typeof(T).GetField("meshMaterial")?.GetValue(template) as Material;
+                        if (meshMaterial != null)
+                        {
+                            var texture = meshMaterial.GetTexture("_MainTex");
+                            field.SetValue(dump, (texture != null) ? texture.name : string.Empty);
+                        }
+                        else
+                        {
+                            field.SetValue(dump, string.Empty);
+                        }
+                    }
+                    else if (field.Name == "__conveyorTextureSpeed")
                     {
                         var gameObject = typeof(T).GetField("prefabOnDisk")?.GetValue(template) as GameObject;
                         if (gameObject != null)
