@@ -181,6 +181,12 @@ namespace Tweakificator
         public Texture2DProxy texture_bottom_metalSmoothHeight;
     }
 
+    public struct ConversionGroupDump
+    {
+        public string identifier;
+        public BuildableObjectConversionGroup.ConversionGroupType groupType;
+    }
+
     public struct BuildableObjectDump
     {
         //public ulong id;

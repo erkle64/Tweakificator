@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.10";
+            VERSION = "2.1.11";
 
         public static LogSource log;
 
@@ -44,6 +44,7 @@ namespace Tweakificator
         public static string craftingTagsDumpFolder;
         public static string terrainBlocksDumpFolder;
         public static string buildingsDumpFolder;
+        public static string conversionGroupsDumpFolder;
         public static string researchDumpFolder;
         public static string biomeDumpFolder;
         public static string blastFurnaceModeDumpFolder;
@@ -64,6 +65,7 @@ namespace Tweakificator
         public static ProxyObject patchDataCraftingTagChanges = null;
         public static ProxyObject patchDataTerrainChanges = null;
         public static ProxyObject patchDataBuildingChanges = null;
+        public static ProxyObject patchDataConversionGroupChanges = null;
         public static ProxyObject patchDataResearchChanges = null;
         public static ProxyObject patchDataBiomeChanges = null;
         public static ProxyObject patchDataBlastFurnaceModeChanges = null;
@@ -77,6 +79,7 @@ namespace Tweakificator
         public static ProxyObject patchDataCraftingTagAdditions = null;
         public static ProxyObject patchDataTerrainAdditions = null;
         public static ProxyObject patchDataBuildingAdditions = null;
+        public static ProxyObject patchDataConversionGroupAdditions = null;
         public static ProxyObject patchDataResearchAdditions = null;
         public static ProxyObject patchDataBiomeAdditions = null;
         public static ProxyObject patchDataBlastFurnaceModeAdditions = null;
@@ -103,6 +106,7 @@ namespace Tweakificator
             craftingTagsDumpFolder = Path.Combine(dumpFolder, "craftingTags");
             terrainBlocksDumpFolder = Path.Combine(dumpFolder, "terrain");
             buildingsDumpFolder = Path.Combine(dumpFolder, "buildings");
+            conversionGroupsDumpFolder = Path.Combine(dumpFolder, "conversionGroups");
             researchDumpFolder = Path.Combine(dumpFolder, "research");
             biomeDumpFolder = Path.Combine(dumpFolder, "biomes");
             blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "blastFurnaceModes");
@@ -143,6 +147,7 @@ namespace Tweakificator
                 if (!Directory.Exists(craftingTagsDumpFolder)) Directory.CreateDirectory(craftingTagsDumpFolder);
                 if (!Directory.Exists(terrainBlocksDumpFolder)) Directory.CreateDirectory(terrainBlocksDumpFolder);
                 if (!Directory.Exists(buildingsDumpFolder)) Directory.CreateDirectory(buildingsDumpFolder);
+                if (!Directory.Exists(conversionGroupsDumpFolder)) Directory.CreateDirectory(conversionGroupsDumpFolder);
                 if (!Directory.Exists(researchDumpFolder)) Directory.CreateDirectory(researchDumpFolder);
                 if (!Directory.Exists(biomeDumpFolder)) Directory.CreateDirectory(biomeDumpFolder);
                 if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
@@ -167,6 +172,7 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataResearchChanges, "research");
             FetchChangesObject(ref patchDataBiomeChanges, "biomes");
             FetchChangesObject(ref patchDataBuildingChanges, "buildings");
+            FetchChangesObject(ref patchDataConversionGroupChanges, "conversionGroups");
             FetchChangesObject(ref patchDataBlastFurnaceModeChanges, "blastFurnaceModes");
             FetchChangesObject(ref patchDataAssemblyLineObjectChanges, "assemblyLineObjects");
             FetchChangesObject(ref patchDataReservoirChanges, "reservoirs");
@@ -180,6 +186,7 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataResearchAdditions, "research");
             FetchAdditionsObject(ref patchDataBiomeAdditions, "biomes");
             FetchAdditionsObject(ref patchDataBuildingAdditions, "buildings");
+            FetchAdditionsObject(ref patchDataConversionGroupAdditions, "conversionGroups");
             FetchAdditionsObject(ref patchDataBlastFurnaceModeAdditions, "blastFurnaceModes");
             FetchAdditionsObject(ref patchDataAssemblyLineObjectAdditions, "assemblyLineObjects");
             FetchAdditionsObject(ref patchDataReservoirAdditions, "reservoirs");
@@ -826,6 +833,21 @@ namespace Tweakificator
                 }
             }
 
+            [HarmonyPatch(typeof(BuildableObjectConversionGroup), nameof(BuildableObjectConversionGroup.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadBuildableObjectConversionGroup(BuildableObjectConversionGroup __instance)
+            {
+                if (hasRun_conversionGroups) return;
+                hasLoaded_conversionGroups = true;
+
+                ProcessOnLoad<ConversionGroupDump, BuildableObjectConversionGroup>(
+                    ref __instance,
+                    __instance.identifier,
+                    "conversion group",
+                    patchDataConversionGroupChanges,
+                    conversionGroupsDumpFolder);
+            }
+
             [HarmonyPatch(typeof(ResearchTemplate), nameof(ResearchTemplate.onLoad))]
             [HarmonyPrefix]
             public static void onLoadResearchTemplate(ResearchTemplate __instance)
@@ -934,6 +956,8 @@ namespace Tweakificator
             private static bool hasRun_biomes = false;
             private static bool hasLoaded_buildings = false;
             private static bool hasRun_buildings = false;
+            private static bool hasLoaded_conversionGroups = false;
+            private static bool hasRun_conversionGroups = false;
             private static bool hasLoaded_blastFurnaceModes = false;
             private static bool hasRun_blastFurnaceModes = false;
             private static bool hasLoaded_assemblyLineObjects = false;
@@ -970,6 +994,13 @@ namespace Tweakificator
                             hasRun_buildings = true;
 
                             ProcessBuildingAdditions();
+                        }
+
+                        if (!hasRun_conversionGroups && hasLoaded_conversionGroups)
+                        {
+                            hasRun_conversionGroups = true;
+
+                            ProcessConversionGroupAdditions();
                         }
 
                         if (!hasRun_terrain && hasLoaded_terrain)
@@ -1221,6 +1252,54 @@ namespace Tweakificator
                         dict_buildingPartTemplates.Add(instance.id, instance);
 
                     botIdToTextureArray[instance.id] = GatherStreamingTextures(instance);
+                }
+            }
+        }
+
+        private static void ProcessConversionGroupAdditions()
+        {
+            if (patchDataConversionGroupAdditions != null)
+            {
+                var conversionGroups = typeof(ItemTemplateManager)
+                    .GetField("dict_conversionGroups", BindingFlags.Static | BindingFlags.NonPublic)
+                    .GetValue(null) as Dictionary<ulong, BuildableObjectConversionGroup>;
+
+                foreach (var entry in patchDataConversionGroupAdditions)
+                {
+                    if (!(entry.Value is ProxyObject source))
+                    {
+                        throw new System.Exception("Invalid conversion group:\r\n" + entry.Value.ToString());
+                    }
+
+                    BuildableObjectConversionGroup template = null;
+                    if (source.ContainsKey("__template"))
+                    {
+                        var templateIdentifier = source["__template"].ToString();
+                        var templateHash = BuildableObjectConversionGroup.generateStringHash(templateIdentifier);
+                        if (!conversionGroups.TryGetValue(templateHash, out template))
+                        {
+                            log.LogError(string.Format("Template conversion group {0} not found!", templateIdentifier));
+                        }
+                    }
+
+                    if (verbose.Get()) log.Log(string.Format("Adding conversion group {0}", entry.Key));
+
+                    BuildableObjectConversionGroup instance;
+                    if (template != null)
+                    {
+                        if (verbose.Get()) log.LogFormat("Using template {0}", template.identifier);
+                        instance = Object.Instantiate(template);
+                    }
+                    else
+                    {
+                        instance = ScriptableObject.CreateInstance<BuildableObjectConversionGroup>();
+                    }
+
+                    entry.Value.Populate(ref instance, populateOverrides, ProcessExpression);
+                    instance.identifier = entry.Key;
+
+                    instance.onLoad();
+                    conversionGroups.Add(instance.id, instance);
                 }
             }
         }
