@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System;
+using TinyJSON;
+using UnityEngine;
 
 namespace Tweakificator
 {
@@ -117,6 +119,28 @@ namespace Tweakificator
         public ResearchTemplateItemInputProxy(ResearchTemplate.ResearchTemplateItemInput researchTemplateItemInput)
         {
             amount = researchTemplateItemInput.amount;
+        }
+    }
+
+    public struct PrefabVizObjectProxy
+    {
+        public int amountCompleteRequired;
+        public string prefabIdentifier;
+        public int prefabPriority;
+        public ProxyObject stationPrefab;
+        public Vector3 stationPrefab_offset;
+        public Vector3 stationPrefab_orientation;
+        public ulong prefabIdentifierHash;
+
+        public PrefabVizObjectProxy(SkyPlatformUpgradeTemplate.PrefabVizObject prefabVizObject)
+        {
+            amountCompleteRequired = prefabVizObject.amountCompleteRequired;
+            prefabIdentifier = prefabVizObject.prefabIdentifier;
+            prefabPriority = prefabVizObject.prefabPriority;
+            stationPrefab = Plugin.GatherPrefabDump(prefabVizObject.stationPrefab);
+            stationPrefab_offset = prefabVizObject.stationPrefab_offset;
+            stationPrefab_orientation = prefabVizObject.stationPrefab_orientation;
+            prefabIdentifierHash = prefabVizObject.prefabIdentifierHash;
         }
     }
 }

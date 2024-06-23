@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using TinyJSON;
 using UnityEngine;
 
@@ -185,6 +186,36 @@ namespace Tweakificator
     {
         public string identifier;
         public BuildableObjectConversionGroup.ConversionGroupType groupType;
+    }
+
+    public struct SkyPlatformUpgradeDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public string description;
+        public string category_identifier;
+        public string icon_identifier;
+        public int sortOrderASC;
+        public SkyPlatformUpgradeTemplate.SkyPlatformUpgradeTemplateFlags flags;
+        public bool isEndless;
+        public string narrativeTrigger;
+        public uint powerRequirement_mw;
+        public uint powerIncrease_mw;
+        public uint constructionDroneIncrease;
+        public string[] requirements_array;
+        public string[] research_requirements_array;
+        public SkyPlatformUpgradeTemplate.UpgradeCostData[] cost_array;
+        //public PrefabVizObjectProxy[] prefabVizObjects;
+    }
+
+    public struct SkyPlatformCategoryDump
+    {
+        public string modIdentifier;
+        public string identifier;
+        public string name;
+        public int sortOrder_ASC;
+        public string description;
     }
 
     public struct BuildableObjectDump

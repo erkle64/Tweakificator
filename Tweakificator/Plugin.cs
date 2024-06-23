@@ -22,7 +22,7 @@ namespace Tweakificator
             MODNAME = "Tweakificator",
             AUTHOR = "erkle64",
             GUID = AUTHOR + "." + MODNAME,
-            VERSION = "2.1.11";
+            VERSION = "2.1.12";
 
         public static LogSource log;
 
@@ -50,6 +50,8 @@ namespace Tweakificator
         public static string blastFurnaceModeDumpFolder;
         public static string assemblyLineObjectDumpFolder;
         public static string reservoirDumpFolder;
+        public static string skyPlatformUpgradeDumpFolder;
+        public static string skyPlatformCategoryDumpFolder;
         public static string iconsDumpFolder;
         //public static string texturesDumpFolder;
         public static string tweaksFolder;
@@ -71,6 +73,8 @@ namespace Tweakificator
         public static ProxyObject patchDataBlastFurnaceModeChanges = null;
         public static ProxyObject patchDataAssemblyLineObjectChanges = null;
         public static ProxyObject patchDataReservoirChanges = null;
+        public static ProxyObject patchDataSkyPlatformUpgradeChanges = null;
+        public static ProxyObject patchDataSkyPlatformCategoryChanges = null;
         public static ProxyObject patchDataItemAdditions = null;
         public static ProxyObject patchDataElementAdditions = null;
         public static ProxyObject patchDataRecipeAdditions = null;
@@ -85,6 +89,8 @@ namespace Tweakificator
         public static ProxyObject patchDataBlastFurnaceModeAdditions = null;
         public static ProxyObject patchDataAssemblyLineObjectAdditions = null;
         public static ProxyObject patchDataReservoirAdditions = null;
+        public static ProxyObject patchDataSkyPlatformUpgradeAdditions = null;
+        public static ProxyObject patchDataSkyPlatformCategoryAdditions = null;
 
         public static Dictionary<System.Type, JSON.PopulateOverride> populateOverrides = new Dictionary<System.Type, JSON.PopulateOverride>();
 
@@ -112,6 +118,8 @@ namespace Tweakificator
             blastFurnaceModeDumpFolder = Path.Combine(dumpFolder, "blastFurnaceModes");
             assemblyLineObjectDumpFolder = Path.Combine(dumpFolder, "assemblyLineObjects");
             reservoirDumpFolder = Path.Combine(dumpFolder, "reservoirs");
+            skyPlatformUpgradeDumpFolder = Path.Combine(dumpFolder, "skyPlatformUpgrades");
+            skyPlatformCategoryDumpFolder = Path.Combine(dumpFolder, "skyPlatformCategories");
             iconsDumpFolder = Path.Combine(dumpFolder, "icons");
             //texturesDumpFolder = Path.Combine(dumpFolder, "textures");
             tweaksFolder = Path.Combine(Path.GetFullPath("."), "tweaks");
@@ -153,6 +161,8 @@ namespace Tweakificator
                 if (!Directory.Exists(blastFurnaceModeDumpFolder)) Directory.CreateDirectory(blastFurnaceModeDumpFolder);
                 if (!Directory.Exists(assemblyLineObjectDumpFolder)) Directory.CreateDirectory(assemblyLineObjectDumpFolder);
                 if (!Directory.Exists(reservoirDumpFolder)) Directory.CreateDirectory(reservoirDumpFolder);
+                if (!Directory.Exists(skyPlatformUpgradeDumpFolder)) Directory.CreateDirectory(skyPlatformUpgradeDumpFolder);
+                if (!Directory.Exists(skyPlatformCategoryDumpFolder)) Directory.CreateDirectory(skyPlatformCategoryDumpFolder);
                 if (!Directory.Exists(iconsDumpFolder)) Directory.CreateDirectory(iconsDumpFolder);
                 //if (!Directory.Exists(texturesDumpFolder)) Directory.CreateDirectory(texturesDumpFolder);
                 if (!Directory.Exists(tweaksFolder)) Directory.CreateDirectory(tweaksFolder);
@@ -176,6 +186,8 @@ namespace Tweakificator
             FetchChangesObject(ref patchDataBlastFurnaceModeChanges, "blastFurnaceModes");
             FetchChangesObject(ref patchDataAssemblyLineObjectChanges, "assemblyLineObjects");
             FetchChangesObject(ref patchDataReservoirChanges, "reservoirs");
+            FetchChangesObject(ref patchDataSkyPlatformUpgradeChanges, "skyPlatformUpgrades");
+            FetchChangesObject(ref patchDataSkyPlatformCategoryChanges, "skyPlatformCategories");
             FetchAdditionsObject(ref patchDataItemAdditions, "items");
             FetchAdditionsObject(ref patchDataElementAdditions, "elements");
             FetchAdditionsObject(ref patchDataRecipeAdditions, "recipes");
@@ -190,6 +202,8 @@ namespace Tweakificator
             FetchAdditionsObject(ref patchDataBlastFurnaceModeAdditions, "blastFurnaceModes");
             FetchAdditionsObject(ref patchDataAssemblyLineObjectAdditions, "assemblyLineObjects");
             FetchAdditionsObject(ref patchDataReservoirAdditions, "reservoirs");
+            FetchAdditionsObject(ref patchDataSkyPlatformUpgradeAdditions, "skyPlatformUpgrades");
+            FetchAdditionsObject(ref patchDataSkyPlatformCategoryAdditions, "skyPlatformCategories");
 
             populateOverrides.Add(typeof(ItemTemplate.ItemMode[]), (Variant data, object original) =>
             {
@@ -936,6 +950,34 @@ namespace Tweakificator
                     reservoirDumpFolder);
             }
 
+            [HarmonyPatch(typeof(SkyPlatformUpgradeTemplate), nameof(SkyPlatformUpgradeTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadSkyPlatformUpgradeTemplate(SkyPlatformUpgradeTemplate __instance)
+            {
+                if (hasRun_skyPlatformUpgrades) return;
+                hasLoaded_skyPlatformUpgrades = true;
+                ProcessOnLoad<SkyPlatformUpgradeDump, SkyPlatformUpgradeTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "sky platform upgrade",
+                    patchDataSkyPlatformUpgradeChanges,
+                    skyPlatformUpgradeDumpFolder);
+            }
+
+            [HarmonyPatch(typeof(SkyPlatformCategoryTemplate), nameof(SkyPlatformCategoryTemplate.onLoad))]
+            [HarmonyPrefix]
+            public static void onLoadSkyPlatformCategoryTemplate(SkyPlatformCategoryTemplate __instance)
+            {
+                if (hasRun_skyPlatformCategories) return;
+                hasLoaded_skyPlatformCategories = true;
+                ProcessOnLoad<SkyPlatformCategoryDump, SkyPlatformCategoryTemplate>(
+                    ref __instance,
+                    __instance.identifier,
+                    "sky platform category",
+                    patchDataSkyPlatformCategoryChanges,
+                    skyPlatformCategoryDumpFolder);
+            }
+
             private static bool hasLoaded_items = false;
             private static bool hasRun_items = false;
             private static bool hasLoaded_elements = false;
@@ -964,6 +1006,10 @@ namespace Tweakificator
             private static bool hasRun_assemblyLineObjects = false;
             private static bool hasLoaded_reservoirs = false;
             private static bool hasRun_reservoirs = false;
+            private static bool hasLoaded_skyPlatformUpgrades = false;
+            private static bool hasRun_skyPlatformUpgrades = false;
+            private static bool hasLoaded_skyPlatformCategories = false;
+            private static bool hasRun_skyPlatformCategories = false;
 
             class InitOnApplicationStartEnumerator : IEnumerable
             {
@@ -1977,6 +2023,10 @@ namespace Tweakificator
             {
                 return new Vector3IntProxy((Vector3Int)template);
             }
+            else if (templateType == typeof(SkyPlatformUpgradeTemplate.PrefabVizObject) && dumpType == typeof(PrefabVizObjectProxy))
+            {
+                return new PrefabVizObjectProxy((SkyPlatformUpgradeTemplate.PrefabVizObject)template);
+            }
             else if (templateType == typeof(ResearchTemplate.ResearchTemplateItemInput[]) && dumpType == typeof(Dictionary<string, ResearchTemplateItemInputProxy>))
             {
                 var templateValues = (ResearchTemplate.ResearchTemplateItemInput[])template;
@@ -2071,7 +2121,7 @@ namespace Tweakificator
             return dump;
         }
 
-        private static ProxyObject GatherPrefabDump(GameObject gameObject, bool isRoot = true)
+        public static ProxyObject GatherPrefabDump(GameObject gameObject, bool isRoot = true)
         {
             if (!dumpPrefabData.Get() || gameObject == null) return null;
 
